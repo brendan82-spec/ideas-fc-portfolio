@@ -148,6 +148,212 @@ html,body,a,button,[role="button"],.menu-row,.project-row,.case-close,.menu-clos
  gallery.addEventListener('touchend',()=>{startY=lastY=0},{passive:true});
 })();
 </script>
+
+<style id="v22-mobile-hard-fix">
+@media(max-width:700px){
+.gallery{position:fixed!important;top:var(--nav-h)!important;left:0!important;right:0!important;bottom:0!important;height:calc(100dvh - var(--nav-h))!important;overflow:hidden!important;overscroll-behavior:none!important;-webkit-overflow-scrolling:auto!important}
+.gallery.work-docked{overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior-y:contain!important;-webkit-overflow-scrolling:touch!important}
+body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;visibility:hidden!important}
+}
+</style>
+<script id="v22-mobile-hard-fix-script">
+(()=>{
+ if(!matchMedia('(max-width:700px)').matches)return;
+ const g=document.getElementById('gallery'),s=document.getElementById('stage'),logo=document.getElementById('heroLogo'); if(!g||!s||!logo)return;
+ let sy=0,ly=0,owner='';
+ const hideLogo=()=>{document.body.classList.add('mobile-after-logo');logo.style.display='none';logo.style.opacity='0';logo.style.visibility='hidden'};
+ const dock=()=>{transition=1;phase='WORK';g.style.transform='translateY(0)';g.classList.add('work-docked');g.scrollTop=0;s.style.visibility='hidden';hideLogo()};
+ const reconnect=()=>{g.classList.remove('work-docked');g.scrollTop=0;s.style.visibility='visible';phase='TRANSITION';transition=1;hideLogo()};
+ document.addEventListener('touchstart',e=>{if(e.touches.length!==1||caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;sy=ly=e.touches[0].clientY;owner=(g.classList.contains('work-docked')&&g.scrollTop<=1)?'worktop':((phase==='INTRO'||phase==='ROTATING'||phase==='BALLS'||phase==='TRANSITION')?'stage':'')},{capture:true,passive:true});
+ document.addEventListener('touchmove',e=>{if(!owner||e.touches.length!==1)return;const y=e.touches[0].clientY,total=y-sy,dy=y-ly;
+   if(owner==='worktop'&&total>8){e.preventDefault();e.stopImmediatePropagation();reconnect();transition=Math.max(0,Math.min(1,1-total/(H*.82)));g.style.transform=`translateY(${(1-transition)*100}%)`;}
+   else if(owner==='stage'){
+     if(phase==='INTRO'&&total<-28){e.preventDefault();e.stopImmediatePropagation();startLogoTurn()}
+     else if(phase==='ROTATING'){e.preventDefault();e.stopImmediatePropagation()}
+     else if(phase==='BALLS'||phase==='TRANSITION'){e.preventDefault();e.stopImmediatePropagation();hideLogo();phase='TRANSITION';transition=Math.max(0,Math.min(1,transition-dy/(H*.95)));g.classList.remove('work-docked');g.scrollTop=0;g.style.transform=`translateY(${(1-transition)*100}%)`;if(transition>=.999)dock()}
+   } ly=y;
+ },{capture:true,passive:false});
+ document.addEventListener('touchend',()=>{if(owner==='worktop'&&!g.classList.contains('work-docked')){if(transition>.92)dock();else{phase=transition<.03?'BALLS':'TRANSITION';s.style.visibility='visible'}}else if(owner==='stage'&&phase==='TRANSITION'){if(transition>.92)dock();else if(transition<.05){transition=0;phase='BALLS';g.style.transform='translateY(100%)';s.style.visibility='visible';hideLogo()}}owner='';},{capture:true,passive:true});
+ const guard=()=>{if(phase==='BALLS'||phase==='TRANSITION'||phase==='WORK')hideLogo();if(phase==='WORK'&&transition>=.999){if(!g.classList.contains('work-docked'))dock()}else if(transition<.999&&g.classList.contains('work-docked')){g.classList.remove('work-docked');g.scrollTop=0}requestAnimationFrame(guard)};requestAnimationFrame(guard);
+})();
+</script>
+
+<style id="v23-agreed">
+@media(hover:hover) and (pointer:fine){html,body,body *{cursor:none!important}#ideasCursor{position:fixed;left:0;top:0;width:16px;height:16px;z-index:99999;pointer-events:none;will-change:transform}}
+.case-close{position:fixed!important;top:calc(var(--nav-h) + 12px)!important;right:14px!important;z-index:9990!important;display:block!important;visibility:visible!important;opacity:1!important}
+.v23-browser{position:relative;min-height:100%;background:var(--paper)}
+.v23-desktop{position:relative;min-height:calc(100dvh - var(--nav-h) - 70px);overflow:hidden;background:#171717}
+.v23-bg{position:absolute;inset:0;background:center/cover no-repeat;opacity:0;transition:opacity .4s ease}.v23-bg.active{opacity:1}
+.v23-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.05),rgba(0,0,0,.58))}
+.v23-list{position:relative;z-index:3;margin-left:auto;width:min(48vw,720px);min-height:calc(100dvh - var(--nav-h) - 70px);padding:5vh 4vw;color:#fff;display:flex;flex-direction:column;justify-content:center}
+.v23-row{display:grid;grid-template-columns:42px 1fr;gap:10px;padding:10px 0;border:0;border-bottom:1px solid rgba(255,255,255,.28);background:none;color:inherit;text-align:left}
+.v23-row .n{font-size:9px;opacity:.55}.v23-row .t{font-size:clamp(14px,1.45vw,23px);line-height:1.02;text-transform:uppercase}.v23-row .c{display:block;font-size:8px;margin-top:4px;opacity:.6;text-transform:uppercase}.v23-row.active .t{color:var(--acid)}
+.v23-mobile{display:none}
+@media(max-width:700px){
+ .v23-desktop{display:none}.v23-mobile{display:block;padding:14px 14px 72px}
+ .v23-tile{position:relative;width:100%;height:80dvh;min-height:500px;max-height:760px;margin-bottom:16px;overflow:hidden;background:#222}
+ .v23-tile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.v23-tile:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 42%,rgba(0,0,0,.74))}
+ .v23-meta{position:absolute;z-index:2;left:18px;right:18px;bottom:20px;color:#fff}.v23-meta .n{font-size:8px;margin-bottom:8px}.v23-meta .t{font-size:clamp(20px,6.4vw,31px);line-height:.96;text-transform:uppercase;max-width:14ch}.v23-meta .c{font-size:9px;margin-top:8px;text-transform:uppercase;opacity:.75}
+ .gallery{position:fixed!important;top:var(--nav-h)!important;left:0!important;right:0!important;bottom:0!important;height:calc(100dvh - var(--nav-h))!important;overflow:hidden!important;overscroll-behavior:none!important}
+ .gallery.work-docked{overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:contain!important}
+ body.v23-postlogo .hero-logo{display:none!important;opacity:0!important;visibility:hidden!important}
+}
+</style><script id="v23-agreed-js">
+(()=>{
+ const g=document.getElementById('gallery'),old=document.getElementById('grid'),logo=document.getElementById('heroLogo'),st=document.getElementById('stage');
+ if(!g||!old||typeof projects==='undefined')return;
+ const imgs=['great-unwaste.jpg','resmed-sleep.jpg','adobe-takeover.jpg','park-ssc.jpg','massel-cricket.jpg','prep.jpg','scott-pizza.jpg','converse-cx.jpg','westpac-savings.jpg','permaguard.jpg','warrington-routes.jpg','marvel-galaxy.jpg'].map(x=>'project-images/'+x);
+ const browser=document.createElement('div');browser.className='v23-browser';
+ const desk=document.createElement('div');desk.className='v23-desktop';const bgbox=document.createElement('div'),shade=document.createElement('div'),list=document.createElement('div');shade.className='v23-shade';list.className='v23-list';const bgs=[];
+ projects.forEach((p,i)=>{const bg=document.createElement('div');bg.className='v23-bg'+(i?'':' active');bg.style.backgroundImage=`url("${imgs[i]}")`;bgbox.append(bg);bgs.push(bg);
+ const r=document.createElement('button');r.className='v23-row'+(i?'':' active');r.innerHTML=`<span class="n">[${String(i+1).padStart(3,'0')}]</span><span><span class="t">${p.title}</span><span class="c">${p.client}</span></span>`;
+ const a=()=>{bgs.forEach((x,j)=>x.classList.toggle('active',j===i));list.querySelectorAll('.v23-row').forEach((x,j)=>x.classList.toggle('active',j===i))};r.onmouseenter=a;r.onfocus=a;r.onclick=()=>openCase(i);list.append(r)});
+ desk.append(bgbox,shade,list);
+ const mob=document.createElement('div');mob.className='v23-mobile';
+ projects.forEach((p,i)=>{const t=document.createElement('article');t.className='v23-tile';t.tabIndex=0;t.innerHTML=`<img src="${imgs[i]}" alt=""><div class="v23-meta"><div class="n">[${String(i+1).padStart(3,'0')}]</div><div class="t">${p.title}</div><div class="c">${p.client}</div></div>`;t.onclick=()=>openCase(i);t.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openCase(i)}};mob.append(t)});
+ browser.append(desk,mob);old.replaceWith(browser);
+
+ if(matchMedia('(hover:hover) and (pointer:fine)').matches){const c=document.createElement('img');c.id='ideasCursor';c.src='ideas-fc-cursor.svg';c.alt='';document.body.append(c);let tx=innerWidth/2,ty=innerHeight/2,x=tx,y=ty,seen=false;addEventListener('pointermove',e=>{tx=e.clientX;ty=e.clientY;seen=true},{passive:true});(function tick(){x+=(tx-x)*.16;y+=(ty-y)*.16;if(seen)c.style.transform=`translate3d(${x-8}px,${y-8}px,0)`;requestAnimationFrame(tick)})()}
+
+ if(matchMedia('(max-width:700px)').matches){
+   let sy=0,back=false;
+   const hide=()=>{document.body.classList.add('v23-postlogo');if(logo){logo.style.display='none';logo.style.opacity='0';logo.style.visibility='hidden'}};
+   (function guard(){if(['BALLS','TRANSITION','WORK'].includes(phase))hide();if(phase==='WORK'&&transition>=.999){if(!g.classList.contains('work-docked')){g.classList.add('work-docked');g.scrollTop=0}}else if(transition<.999&&g.classList.contains('work-docked')){g.classList.remove('work-docked');g.scrollTop=0}requestAnimationFrame(guard)})();
+   g.addEventListener('touchstart',e=>{sy=(e.touches.length===1&&g.classList.contains('work-docked')&&g.scrollTop<=1)?e.touches[0].clientY:0;back=false},{capture:true,passive:true});
+   g.addEventListener('touchmove',e=>{if(!sy||g.scrollTop>1)return;const d=e.touches[0].clientY-sy;if(d>10){e.preventDefault();e.stopImmediatePropagation();back=true;g.classList.remove('work-docked');g.scrollTop=0;st.style.visibility='visible';phase='TRANSITION';transition=Math.max(0,Math.min(1,1-d/(H*.82)));g.style.transform=`translateY(${(1-transition)*100}%)`;hide()}},{capture:true,passive:false});
+   g.addEventListener('touchend',()=>{if(back){if(transition>.92){transition=1;phase='WORK';g.style.transform='translateY(0)';g.classList.add('work-docked');st.style.visibility='hidden'}else if(transition<.05){transition=0;phase='BALLS';g.style.transform='translateY(100%)';st.style.visibility='visible'}}sy=0;back=false},{capture:true,passive:true});
+ }
+})();
+</script>
+<style id="v24-final-refinements">
+/* HEADER: 150px Ideas FC SVG + two-line identity. Entire lockup is Home. */
+.topbar{padding-left:24px!important}
+.v24-home{
+  pointer-events:auto;display:flex;align-items:center;gap:18px;height:100%;
+  border:0;background:none;padding:0;text-align:left;color:inherit;text-decoration:none;
+}
+.v24-home-logo{display:block;width:150px;height:auto;max-height:42px;object-fit:contain;object-position:left center}
+.v24-home-copy{display:flex;flex-direction:column;justify-content:center}
+.v24-home-name{font-size:11px;line-height:1.1;font-weight:700;letter-spacing:.01em}
+.v24-home-title{font-size:9px;line-height:1.2;margin-top:4px;font-weight:400;letter-spacing:.01em}
+.topbar>.identity{display:none!important}
+
+/* DESKTOP SELECTED WORK: no overlay, compact one-line editorial list. */
+@media(min-width:701px){
+  .v23-desktop{background:#111}
+  .v23-shade{display:none!important}
+  .v23-bg{transition:none!important;opacity:0}
+  .v23-bg.active{opacity:1}
+  .v23-list{
+    width:auto!important;
+    min-width:430px;
+    max-width:min(48vw,680px);
+    min-height:0!important;
+    position:absolute!important;
+    left:6.8vw!important;
+    right:auto!important;
+    top:50%!important;
+    transform:translateY(-50%)!important;
+    margin:0!important;
+    padding:0!important;
+    display:block!important;
+    color:#fff;
+  }
+  .v23-row{
+    display:block!important;
+    width:100%;
+    padding:2px 0!important;
+    border:0!important;
+    background:none!important;
+    white-space:nowrap;
+    line-height:1.15;
+    text-align:left;
+  }
+  .v23-row .n,
+  .v23-row .t,
+  .v23-row .c{
+    display:inline!important;
+    font-size:11px!important;
+    line-height:1.15!important;
+    letter-spacing:0!important;
+    text-transform:none!important;
+    opacity:1!important;
+    margin:0!important;
+    padding:0!important;
+    color:inherit;
+  }
+  .v23-row .n{margin-right:7px!important}
+  .v23-row .c:before{content:" — "}
+  .v23-row.active,
+  .v23-row.active .n,
+  .v23-row.active .t,
+  .v23-row.active .c{color:var(--acid)!important}
+}
+
+/* Mobile header stays usable: smaller header logo, same two-line lockup. */
+@media(max-width:700px){
+  .topbar{padding:0 14px!important}
+  .v24-home{gap:10px;max-width:calc(100vw - 58px)}
+  .v24-home-logo{width:72px;max-height:34px}
+  .v24-home-name{font-size:10px}
+  .v24-home-title{font-size:7px;margin-top:3px;white-space:nowrap}
+}
+</style>
+
+<script id="v24-final-refinements-js">
+(()=>{
+  const topbar=document.getElementById('topbar');
+  const identity=topbar?.querySelector('.identity');
+  const gallery=document.getElementById('gallery');
+  const caseEl=document.getElementById('case');
+  const stage=document.getElementById('stage');
+  const heroLogo=document.getElementById('heroLogo');
+  if(!topbar||!identity||!gallery||!stage||!heroLogo)return;
+
+  /* Add requested 150px SVG brand mark + revised titles. */
+  const home=document.createElement('button');
+  home.className='v24-home';
+  home.type='button';
+  home.setAttribute('aria-label','Back to start');
+  home.innerHTML=`<img class="v24-home-logo" src="ideas-fc-logo.svg" alt="">
+    <span class="v24-home-copy">
+      <span class="v24-home-name">BRENDAN MCGOVERN</span>
+      <span class="v24-home-title">CREATIVE LEAD + ART DIRECTOR + DESIGNER</span>
+    </span>`;
+  topbar.insertBefore(home,identity);
+
+  /* Home means the literal beginning: close overlays, reset work, restore opening logo. */
+  home.addEventListener('click',()=>{
+    try{ if(caseEl?.classList.contains('open')) finishCaseReturn(); }catch(e){}
+    try{ toggleMenu(false); }catch(e){}
+    gallery.classList.remove('work-docked','gallery-under');
+    gallery.scrollTop=0;
+    transition=0;
+    phase='INTRO';
+    stage.style.visibility='visible';
+    gallery.style.transform='translateY(100%)';
+    document.body.classList.remove('v23-postlogo','v23-work','v23-balls','mobile-balls','mobile-work');
+    heroLogo.style.removeProperty('display');
+    heroLogo.style.removeProperty('visibility');
+    heroLogo.style.removeProperty('opacity');
+    heroLogo.style.transform='translate(-50%,-50%) rotate(0deg)';
+    logoTurn=0; logoTurnTarget=0;
+    cue.style.opacity='1';
+    try{spawnBalls(false)}catch(e){}
+    window.scrollTo(0,0);
+  });
+
+  /* Convert desktop rows to one-line [001] Project — Brand while retaining click/open behavior.
+     Hover/background switch remains immediate because V24 removes the previous fade transition. */
+  const rows=[...document.querySelectorAll('.v23-row')];
+  rows.forEach((row,i)=>{
+    const p=projects[i];
+    if(!p)return;
+    row.innerHTML=`<span class="n">[${String(i+1).padStart(3,'0')}]</span><span class="t">${p.title}</span><span class="c">${p.client}</span>`;
+  });
+})();
+</script>
+
 </body></html>
 <style id="v15-fixes">
 .case-hero{justify-content:flex-end!important;align-items:stretch!important}
