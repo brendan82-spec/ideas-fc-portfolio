@@ -116,7 +116,7 @@ html,body,a,button,[role="button"],.menu-row,.project-row,.case-close,.menu-clos
 </style>
 <script id="v20-work-browser">
 (()=>{
- const grid=document.getElementById('grid'); if(!grid||!window.projects)return;
+ const grid=document.getElementById('grid'); if(!grid||typeof projects==='undefined')return;
  // Visuals are intentionally conventional image paths so Brendan can drop final hero JPG/WebP files into /project-images.
  const visualNames=['great-unwaste','resmed-sleep','adobe-takeover','park-ssc','massel-cricket','prep','scott-pizza','converse-cx','westpac-savings','permaguard','warrington-routes','marvel-galaxy'];
  projects.forEach((p,i)=>p.visual=`project-images/${visualNames[i]}.jpg`);
