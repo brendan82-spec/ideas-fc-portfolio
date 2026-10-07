@@ -356,7 +356,7 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 
 
 <style id="v25-intro-copy-selected-work">
-/* V27 — scroll-driven Anton spiral intro. Existing logo / balls / work sequence remains unchanged. */
+/* V28 — fixed spiral, word-by-word scroll reveal. Existing logo / balls / work sequence unchanged. */
 @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
 .gallery-head{display:none!important}
 .v23-browser,.v23-desktop{min-height:100%!important;height:100%!important}
@@ -367,64 +367,67 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
   .v23-row{padding:3px 0!important}
 }
 .intro-copy-sequence{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden;color:#050505;text-transform:uppercase}
-.spiral-char{position:absolute;left:50%;top:50%;font-family:'Anton','Arial Narrow',Impact,sans-serif;font-weight:400;line-height:1;white-space:pre;transform-origin:50% 50%;will-change:transform,opacity,filter}
-@media(prefers-reduced-motion:reduce){.spiral-char{filter:none!important}}
+.spiral-word{position:absolute;left:50%;top:50%;font-family:'Anton','Arial Narrow',Impact,sans-serif;font-weight:400;line-height:.88;letter-spacing:0;white-space:nowrap;transform-origin:50% 50%;will-change:transform,opacity,filter;opacity:0}
+@media(prefers-reduced-motion:reduce){.spiral-word{filter:none!important;transition:none!important}}
 </style>
 <script id="v25-intro-copy-selected-work-js">
 (()=>{
   const stage=document.getElementById('stage'),logo=document.getElementById('heroLogo'),cue=document.getElementById('cue');
   if(!stage||!logo)return;
-  const sentence='CREATE IDEAS SO UNEXPECTED AND POWERFUL THEY DON’T JUST CATCH THE EYE BUT HIJACK THE BRAIN AND EXPLODE IN THE MIND. ';
-  const copy=document.createElement('div');copy.className='intro-copy-sequence';copy.setAttribute('aria-hidden','true');
-  const chars=[...sentence].map(ch=>{const e=document.createElement('span');e.className='spiral-char';e.textContent=ch===' '?'\u00a0':ch;copy.appendChild(e);return e});
+  const WORDS=['CREATE','IDEAS','SO','UNEXPECTED','AND','POWERFUL','THEY','DON’T','JUST','CATCH','THE','EYE','BUT','HIJACK','THE','BRAIN','AND','EXPLODE','IN','THE','MIND'];
+  const copy=document.createElement('div'); copy.className='intro-copy-sequence'; copy.setAttribute('aria-hidden','true');
+  const els=WORDS.map(word=>{const e=document.createElement('span');e.className='spiral-word';e.textContent=word;copy.appendChild(e);return e});
   stage.appendChild(copy);
   window.introCopyProgress=0;
   const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
-  const smooth=t=>t*t*(3-2*t);
-  function renderCopy(){
+  const ease=t=>1-Math.pow(1-clamp(t),3);
+  function layout(){
     const p=clamp(window.introCopyProgress),sr=stage.getBoundingClientRect(),lr=logo.getBoundingClientRect();
     const W=sr.width,H=sr.height,small=Math.min(W,H),mobile=W<701;
-    /* Inner edge hugs the logo with 34–40px breathing room. */
-    const inner=Math.max(lr.width,lr.height)/2+(mobile?30:38);
-    /* Outer edge runs well beyond the viewport so the foreground letters crop like the reference. */
-    const outer=Math.hypot(W,H)*.68;
-    const turns=mobile?2.15:2.55;
-    const baseAngle=-Math.PI*.52 + p*Math.PI*2.35;
-    const travel=p*.46; // scroll pulls the sentence deeper into the spiral
-    chars.forEach((el,i)=>{
-      const u=i/Math.max(1,chars.length-1);
-      /* Text begins in the foreground: first characters are largest/outside, then reduce toward logo. */
-      const depth=clamp(u+travel,0,1.12);
-      const r=outer-(outer-inner)*Math.min(depth,1);
-      const theta=baseAngle + depth*turns*Math.PI*2;
+    /* Tight centre like the supplied guide. The spiral itself stays still; scroll reveals words. */
+    const inner=Math.max(lr.width,lr.height)/2+(mobile?12:18);
+    const outer=mobile?Math.max(small*.80,inner+small*.48):Math.max(small*1.00,inner+small*.66);
+    const turns=mobile?1.52:1.68;
+    const startAngle=-Math.PI*.58;
+    const visibleFloat=p*WORDS.length;
+    els.forEach((el,i)=>{
+      /* CREATE begins outermost and MIND finishes beside the logo. */
+      const u=i/(WORDS.length-1);
+      const shaped=Math.pow(u,.88);
+      const r=outer-(outer-inner)*shaped;
+      const theta=startAngle+shaped*turns*Math.PI*2;
       const x=Math.cos(theta)*r,y=Math.sin(theta)*r;
-      /* True perspective scale: large at foreground, small/tight at centre. */
-      const rn=clamp((r-inner)/Math.max(1,outer-inner));
-      const font=mobile?(13+rn*48):(15+rn*92);
+      const rn=clamp((r-inner)/(outer-inner));
+      /* Large display words fill the viewport; they reduce towards the logo. */
+      let font=mobile?(24+rn*54):(34+rn*118);
+      const len=WORDS[i].length;
+      if(len>=10)font*=.82; else if(len>=8)font*=.88; else if(len<=3)font*=1.10;
       const tangent=theta+Math.PI/2;
-      const fadeIn=clamp((u+p*.9)*8);
-      const fadeOut=clamp((1.16-depth)*7);
-      const edgeBlur=rn>.78?smooth((rn-.78)/.22)*(mobile?1.4:3.2):0;
+      const reveal=ease(clamp(visibleFloat-i,0,1));
+      const enterScale=.72+.28*reveal;
+      const blur=(1-reveal)*5 + (rn>.88?(rn-.88)/.12*1.2:0);
       el.style.fontSize=font+'px';
-      el.style.opacity=String(fadeIn*fadeOut);
-      el.style.filter=`blur(${edgeBlur}px)`;
-      el.style.transform=`translate(-50%,-50%) translate(${x}px,${y}px) rotate(${tangent}rad)`;
+      el.style.opacity=String(reveal);
+      el.style.filter=`blur(${blur}px)`;
+      el.style.transform=`translate(-50%,-50%) translate(${x}px,${y}px) rotate(${tangent}rad) scale(${enterScale})`;
     });
     copy.style.opacity=phase==='INTRO'?'1':'0';
   }
   window.advanceIntroCopy=function(delta){
     if(phase!=='INTRO')return;
-    window.introCopyProgress=clamp(window.introCopyProgress+Math.max(0,delta)/1350);
-    if(cue)cue.style.opacity=window.introCopyProgress>.02?'0':'1';
-    renderCopy();
-    if(window.introCopyProgress>=.995){copy.style.opacity='0';startLogoTurn()}
+    /* One word arrives at a time. About 90px of wheel/swipe travel per word. */
+    window.introCopyProgress=clamp(window.introCopyProgress+Math.max(0,delta)/(WORDS.length*90));
+    if(cue)cue.style.opacity=window.introCopyProgress>.015?'0':'1';
+    layout();
+    /* MIND must be fully visible before the existing logo rotation begins. */
+    if(window.introCopyProgress>=.999){window.introCopyProgress=1;layout();setTimeout(()=>{if(phase==='INTRO'){copy.style.opacity='0';startLogoTurn()}},140)}
   };
-  addEventListener('resize',renderCopy,{passive:true});
-  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(renderCopy);
-  renderCopy();
+  addEventListener('resize',layout,{passive:true});
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(layout);
+  layout();
   let prevPhase=phase;
   (function watch(){
-    if(prevPhase!=='INTRO'&&phase==='INTRO'){window.introCopyProgress=0;copy.style.opacity='1';if(cue)cue.style.opacity='1';renderCopy()}
+    if(prevPhase!=='INTRO'&&phase==='INTRO'){window.introCopyProgress=0;copy.style.opacity='1';if(cue)cue.style.opacity='1';layout()}
     if(phase!=='INTRO')copy.style.opacity='0';
     prevPhase=phase;requestAnimationFrame(watch)
   })();
