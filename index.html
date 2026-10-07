@@ -356,7 +356,8 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 
 
 <style id="v25-intro-copy-selected-work">
-/* V25 — only the agreed intro copy sequence + Selected Work typography/canvas refinements. */
+/* V26 — scroll-driven Anton spiral intro. Existing logo turn, balls and work interactions remain untouched. */
+@import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
 .gallery-head{display:none!important}
 .v23-browser,.v23-desktop{min-height:100%!important;height:100%!important}
 @media(min-width:701px){
@@ -365,65 +366,78 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
   .v23-row .n,.v23-row .t,.v23-row .c{font-size:14px!important;line-height:1.2!important}
   .v23-row{padding:3px 0!important}
 }
-.intro-copy-sequence{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden;color:#050505;font-weight:700;text-transform:uppercase;letter-spacing:.02em}
-.intro-copy-line{position:absolute;left:0;right:0;top:50%;height:1.35em;font-size:clamp(13px,1.12vw,18px);line-height:1.35;will-change:transform,opacity}
-.intro-copy-half{position:absolute;top:0;white-space:nowrap;will-change:transform}
-.intro-copy-half.left{right:50%;text-align:right;padding-right:12px}
-.intro-copy-half.right{left:50%;text-align:left;padding-left:12px}
-@media(max-width:700px){
-  .intro-copy-line{font-size:clamp(10px,3vw,13px)}
-  .intro-copy-half.left{padding-right:7px}.intro-copy-half.right{padding-left:7px}
-}
+.intro-spiral{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden;color:#050505;transition:opacity .16s linear}
+.intro-spiral svg{display:block;width:100%;height:100%;overflow:visible}
+.intro-spiral text{font-family:'Anton','Arial Narrow',Impact,sans-serif;font-size:14px;font-weight:400;letter-spacing:.035em;text-transform:uppercase;fill:#050505;paint-order:stroke;will-change:opacity}
+@media(max-width:700px){.intro-spiral text{font-size:14px;letter-spacing:.025em}}
 </style>
 <script id="v25-intro-copy-selected-work-js">
 (()=>{
   const stage=document.getElementById('stage'), logo=document.getElementById('heroLogo'), cue=document.getElementById('cue');
   if(!stage||!logo)return;
-  const copy=document.createElement('div'); copy.className='intro-copy-sequence'; copy.setAttribute('aria-hidden','true');
-  const lines=[
-    ['CREATE IDEAS SO UNEXPECTED','AND POWERFUL'],
-    ["THEY DON’T JUST CATCH THE EYE",'BUT'],
-    ['HIJACK THE BRAIN AND','EXPLODE IN THE MIND.']
-  ];
-  const els=lines.map(parts=>{const l=document.createElement('div');l.className='intro-copy-line';l.innerHTML=`<span class="intro-copy-half left">${parts[0]}</span><span class="intro-copy-half right">${parts[1]}</span>`;copy.appendChild(l);return l});
-  stage.appendChild(copy);
+  const NS='http://www.w3.org/2000/svg';
+  const copy=document.createElement('div'); copy.className='intro-spiral'; copy.setAttribute('aria-hidden','true');
+  const svg=document.createElementNS(NS,'svg'); svg.setAttribute('preserveAspectRatio','none');
+  const defs=document.createElementNS(NS,'defs');
+  const path=document.createElementNS(NS,'path'); path.id='ideasSpiralPath'; path.setAttribute('fill','none');
+  defs.appendChild(path); svg.appendChild(defs);
+  const textEl=document.createElementNS(NS,'text');
+  const textPath=document.createElementNS(NS,'textPath'); textPath.setAttribute('href','#ideasSpiralPath'); textPath.setAttribute('startOffset','0');
+  const sentence='CREATE IDEAS SO UNEXPECTED AND POWERFUL THEY DON’T JUST CATCH THE EYE BUT HIJACK THE BRAIN AND EXPLODE IN THE MIND.';
+  /* Repeat the statement so the path reads as one continuous typographic spiral, like the reference. */
+  textPath.textContent=(sentence+'   •   ').repeat(9);
+  textEl.appendChild(textPath); svg.appendChild(textEl); copy.appendChild(svg); stage.appendChild(copy);
   window.introCopyProgress=0;
   const clamp01=v=>Math.max(0,Math.min(1,v));
+  let pathLength=1;
+  function buildSpiral(){
+    const sr=stage.getBoundingClientRect(), lr=logo.getBoundingClientRect();
+    const w=Math.max(1,sr.width), h=Math.max(1,sr.height), cx=w/2, cy=h/2;
+    svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+    /* Keep a clean ~40px moat around the stationary logo, then open the spiral to beyond the frame. */
+    const inner=Math.max(lr.width,lr.height)/2+40;
+    const outer=Math.hypot(w,h)*.68;
+    const turns=matchMedia('(max-width:700px)').matches?4.15:4.8;
+    const steps=420, pts=[];
+    for(let i=0;i<=steps;i++){
+      const q=i/steps;
+      const theta=(turns*2*Math.PI*q)-Math.PI/2;
+      const r=inner+(outer-inner)*q;
+      /* Slight vertical compression gives the photographic/reference perspective while remaining a true spiral. */
+      const x=cx+Math.cos(theta)*r;
+      const y=cy+Math.sin(theta)*r*.84;
+      pts.push(`${i?'L':'M'}${x.toFixed(2)},${y.toFixed(2)}`);
+    }
+    path.setAttribute('d',pts.join(' '));
+    try{pathLength=path.getTotalLength()||1}catch(e){pathLength=1}
+    renderCopy();
+  }
   function renderCopy(){
     const p=window.introCopyProgress;
-    const lr=logo.getBoundingClientRect(), sr=stage.getBoundingClientRect();
-    const logoHalf=lr.width/2, gap=40;
-    const maxShift=Math.max(0,logoHalf+gap);
-    els.forEach((line,i)=>{
-      // Each line enters from below, passes the logo one after another, then exits above.
-      const lp=(p*1.48)-(i*.24);
-      const y=(.74-lp)*sr.height;
-      const near=clamp01(1-Math.abs(y)/(Math.max(90,lr.height*.72)));
-      const ease=near*near*(3-2*near);
-      line.style.transform=`translateY(${y}px)`;
-      line.style.opacity=String(clamp01((lp+.10)*5)*clamp01((1.22-lp)*5));
-      const left=line.querySelector('.left'),right=line.querySelector('.right');
-      left.style.transform=`translateX(${-maxShift*ease}px)`;
-      right.style.transform=`translateX(${maxShift*ease}px)`;
-    });
+    /* Start outside, scroll the sentence inward, then let the final words clear before the existing logo rotation. */
+    const offset=(1-p)*pathLength*.82 - pathLength*.08;
+    textPath.setAttribute('startOffset',String(offset));
+    const enter=clamp01(p/.08), exit=clamp01((1-p)/.08);
+    textEl.style.opacity=String(Math.min(enter,exit));
     copy.style.opacity=phase==='INTRO'?'1':'0';
   }
   window.advanceIntroCopy=function(delta){
     if(phase!=='INTRO')return;
-    window.introCopyProgress=clamp01(window.introCopyProgress + Math.max(0,delta)/1050);
-    if(cue)cue.style.opacity=window.introCopyProgress>.02?'0':'1';
+    window.introCopyProgress=clamp01(window.introCopyProgress+Math.max(0,delta)/1500);
+    if(cue)cue.style.opacity=window.introCopyProgress>.015?'0':'1';
     renderCopy();
     if(window.introCopyProgress>=.995){copy.style.opacity='0';startLogoTurn()}
   };
-  // Keep layout accurate if the viewport changes while the copy is passing the logo.
-  addEventListener('resize',renderCopy,{passive:true});
-  renderCopy();
-  // Home/reset in V24 restores phase=INTRO. Detect that reset and restore this new pre-roll too.
+  addEventListener('resize',buildSpiral,{passive:true});
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(buildSpiral); else buildSpiral();
+  buildSpiral();
   let prevPhase=phase;
   (function watch(){
-    if(prevPhase!=='INTRO'&&phase==='INTRO'){window.introCopyProgress=0;copy.style.opacity='1';if(cue)cue.style.opacity='1';renderCopy()}
+    if(prevPhase!=='INTRO'&&phase==='INTRO'){
+      window.introCopyProgress=0;copy.style.opacity='1';if(cue)cue.style.opacity='1';buildSpiral();
+    }
     if(phase!=='INTRO')copy.style.opacity='0';
-    prevPhase=phase;requestAnimationFrame(watch)
+    prevPhase=phase;requestAnimationFrame(watch);
   })();
 })();
 </script>
