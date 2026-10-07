@@ -80,8 +80,8 @@ function physicsStep(dt){
 function render(t){const dt=Math.min(1.8,(t-last)/16.67);last=t;ctx.clearRect(0,0,W,H);if(phase==='ROTATING'){logoTurn=Math.min(logoTurnTarget,logoTurn+8.5*dt);heroLogo.style.transform=`translate(-50%,-50%) rotate(${logoTurn}deg)`;if(logoTurn>=logoTurnTarget)releaseBalls()}physicsStep(dt);if(phase!=='INTRO'&&phase!=='ROTATING')for(const b of balls)drawBall(b);gallery.style.transform=`translateY(${(1-transition)*100}%)`;requestAnimationFrame(render)}
 img.onload=()=>{sampleMask();spawnBalls(false);resizePhysics()};addEventListener('resize',resizePhysics,{passive:true});requestAnimationFrame(render);
 // Desktop wheel/scroll maps smoothly to the same states.
-addEventListener('wheel',e=>{if(caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;if(phase==='INTRO'&&e.deltaY>12){e.preventDefault();startLogoTurn();return}if(phase==='ROTATING'){e.preventDefault();return}if((phase==='BALLS'||phase==='TRANSITION')&&stage.style.visibility!=='hidden'){e.preventDefault();phase='TRANSITION';transition=clamp(transition+e.deltaY/900);if(transition>=.995){phase='WORK';transition=1;stage.style.visibility='hidden'}if(transition<=.001){phase='BALLS';transition=0}}},{passive:false});
-let sy=0,lastY=0,gesture='';stage.addEventListener('touchstart',e=>{if(e.touches.length!==1)return;sy=lastY=e.touches[0].clientY;gesture='';touching=true},{passive:true});stage.addEventListener('touchmove',e=>{if(e.touches.length!==1)return;const y=e.touches[0].clientY,dy=y-lastY,total=y-sy;if(!gesture&&Math.abs(total)>14)gesture=total<0?'up':'down';if(phase==='INTRO'){if(total<-38){e.preventDefault();startLogoTurn();sy=y}}else if(phase==='ROTATING'){e.preventDefault()}else if(phase==='BALLS'||phase==='TRANSITION'){e.preventDefault();phase='TRANSITION';transition=clamp(transition-dy/(H*1.35));if(transition<=.001)phase='BALLS';lastY=y}},{passive:false});stage.addEventListener('touchend',()=>{touching=false;if(transition>.88){transition=1;phase='WORK';stage.style.visibility='hidden'}else if(transition<.08){transition=0;phase='BALLS'}},{passive:true});
+addEventListener('wheel',e=>{if(caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;if(phase==='INTRO'&&e.deltaY>0){e.preventDefault();if(typeof advanceIntroCopy==='function'){advanceIntroCopy(e.deltaY)}else{startLogoTurn()}return}if(phase==='ROTATING'){e.preventDefault();return}if((phase==='BALLS'||phase==='TRANSITION')&&stage.style.visibility!=='hidden'){e.preventDefault();phase='TRANSITION';transition=clamp(transition+e.deltaY/900);if(transition>=.995){phase='WORK';transition=1;stage.style.visibility='hidden'}if(transition<=.001){phase='BALLS';transition=0}}},{passive:false});
+let sy=0,lastY=0,gesture='';stage.addEventListener('touchstart',e=>{if(e.touches.length!==1)return;sy=lastY=e.touches[0].clientY;gesture='';touching=true},{passive:true});stage.addEventListener('touchmove',e=>{if(e.touches.length!==1)return;const y=e.touches[0].clientY,dy=y-lastY,total=y-sy;if(!gesture&&Math.abs(total)>14)gesture=total<0?'up':'down';if(phase==='INTRO'){if(total<-8){e.preventDefault();if(typeof advanceIntroCopy==='function'){advanceIntroCopy(Math.max(0,-dy)*2.2)}else if(total<-38){startLogoTurn()}sy=y}}else if(phase==='ROTATING'){e.preventDefault()}else if(phase==='BALLS'||phase==='TRANSITION'){e.preventDefault();phase='TRANSITION';transition=clamp(transition-dy/(H*1.35));if(transition<=.001)phase='BALLS';lastY=y}},{passive:false});stage.addEventListener('touchend',()=>{touching=false;if(transition>.88){transition=1;phase='WORK';stage.style.visibility='hidden'}else if(transition<.08){transition=0;phase='BALLS'}},{passive:true});
 // From the top of Work, a deliberate downward swipe returns to the transition/physics stage.
 let gy=0;gallery.addEventListener('touchstart',e=>{if(gallery.scrollTop<=1&&e.touches.length===1)gy=e.touches[0].clientY;else gy=0},{passive:true});gallery.addEventListener('touchmove',e=>{if(!gy||gallery.scrollTop>1)return;const d=e.touches[0].clientY-gy;if(d>18){e.preventDefault();stage.style.visibility='visible';phase='TRANSITION';transition=clamp(1-d/(H*.8));if(transition<.98)gallery.scrollTop=0}},{passive:false});gallery.addEventListener('touchend',()=>{gy=0;if(transition<.9){phase=transition<.05?'BALLS':'TRANSITION'}else{transition=1;phase='WORK';stage.style.visibility='hidden'}},{passive:true});gallery.addEventListener('wheel',e=>{if(gallery.scrollTop<=1&&e.deltaY<0){e.preventDefault();stage.style.visibility='visible';phase='TRANSITION';transition=clamp(transition+e.deltaY/900)}},{passive:false});
 
@@ -168,7 +168,7 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
  document.addEventListener('touchmove',e=>{if(!owner||e.touches.length!==1)return;const y=e.touches[0].clientY,total=y-sy,dy=y-ly;
    if(owner==='worktop'&&total>8){e.preventDefault();e.stopImmediatePropagation();reconnect();transition=Math.max(0,Math.min(1,1-total/(H*.82)));g.style.transform=`translateY(${(1-transition)*100}%)`;}
    else if(owner==='stage'){
-     if(phase==='INTRO'&&total<-28){e.preventDefault();e.stopImmediatePropagation();startLogoTurn()}
+     if(phase==='INTRO'&&total<-8){e.preventDefault();e.stopImmediatePropagation();if(typeof advanceIntroCopy==='function'){advanceIntroCopy(Math.max(0,-dy)*2.2)}else if(total<-28){startLogoTurn()}}
      else if(phase==='ROTATING'){e.preventDefault();e.stopImmediatePropagation()}
      else if(phase==='BALLS'||phase==='TRANSITION'){e.preventDefault();e.stopImmediatePropagation();hideLogo();phase='TRANSITION';transition=Math.max(0,Math.min(1,transition-dy/(H*.95)));g.classList.remove('work-docked');g.scrollTop=0;g.style.transform=`translateY(${(1-transition)*100}%)`;if(transition>=.999)dock()}
    } ly=y;
@@ -351,6 +351,80 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
     if(!p)return;
     row.innerHTML=`<span class="n">[${String(i+1).padStart(3,'0')}]</span><span class="t">${p.title}</span><span class="c">${p.client}</span>`;
   });
+})();
+</script>
+
+
+<style id="v25-intro-copy-selected-work">
+/* V25 — only the agreed intro copy sequence + Selected Work typography/canvas refinements. */
+.gallery-head{display:none!important}
+.v23-browser,.v23-desktop{min-height:100%!important;height:100%!important}
+@media(min-width:701px){
+  .v23-list{max-width:min(68vw,1120px)!important}
+  .v23-list:before{content:"SELECTED WORK";display:block;font-size:18px;line-height:1.1;font-weight:400;margin:0 0 18px;color:#fff;letter-spacing:0}
+  .v23-row .n,.v23-row .t,.v23-row .c{font-size:14px!important;line-height:1.2!important}
+  .v23-row{padding:3px 0!important}
+}
+.intro-copy-sequence{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden;color:#050505;font-weight:700;text-transform:uppercase;letter-spacing:.02em}
+.intro-copy-line{position:absolute;left:0;right:0;top:50%;height:1.35em;font-size:clamp(13px,1.12vw,18px);line-height:1.35;will-change:transform,opacity}
+.intro-copy-half{position:absolute;top:0;white-space:nowrap;will-change:transform}
+.intro-copy-half.left{right:50%;text-align:right;padding-right:12px}
+.intro-copy-half.right{left:50%;text-align:left;padding-left:12px}
+@media(max-width:700px){
+  .intro-copy-line{font-size:clamp(10px,3vw,13px)}
+  .intro-copy-half.left{padding-right:7px}.intro-copy-half.right{padding-left:7px}
+}
+</style>
+<script id="v25-intro-copy-selected-work-js">
+(()=>{
+  const stage=document.getElementById('stage'), logo=document.getElementById('heroLogo'), cue=document.getElementById('cue');
+  if(!stage||!logo)return;
+  const copy=document.createElement('div'); copy.className='intro-copy-sequence'; copy.setAttribute('aria-hidden','true');
+  const lines=[
+    ['CREATE IDEAS SO UNEXPECTED','AND POWERFUL'],
+    ["THEY DON’T JUST CATCH THE EYE",'BUT'],
+    ['HIJACK THE BRAIN AND','EXPLODE IN THE MIND.']
+  ];
+  const els=lines.map(parts=>{const l=document.createElement('div');l.className='intro-copy-line';l.innerHTML=`<span class="intro-copy-half left">${parts[0]}</span><span class="intro-copy-half right">${parts[1]}</span>`;copy.appendChild(l);return l});
+  stage.appendChild(copy);
+  window.introCopyProgress=0;
+  const clamp01=v=>Math.max(0,Math.min(1,v));
+  function renderCopy(){
+    const p=window.introCopyProgress;
+    const lr=logo.getBoundingClientRect(), sr=stage.getBoundingClientRect();
+    const logoHalf=lr.width/2, gap=40;
+    const maxShift=Math.max(0,logoHalf+gap);
+    els.forEach((line,i)=>{
+      // Each line enters from below, passes the logo one after another, then exits above.
+      const lp=(p*1.48)-(i*.24);
+      const y=(.74-lp)*sr.height;
+      const near=clamp01(1-Math.abs(y)/(Math.max(90,lr.height*.72)));
+      const ease=near*near*(3-2*near);
+      line.style.transform=`translateY(${y}px)`;
+      line.style.opacity=String(clamp01((lp+.10)*5)*clamp01((1.22-lp)*5));
+      const left=line.querySelector('.left'),right=line.querySelector('.right');
+      left.style.transform=`translateX(${-maxShift*ease}px)`;
+      right.style.transform=`translateX(${maxShift*ease}px)`;
+    });
+    copy.style.opacity=phase==='INTRO'?'1':'0';
+  }
+  window.advanceIntroCopy=function(delta){
+    if(phase!=='INTRO')return;
+    window.introCopyProgress=clamp01(window.introCopyProgress + Math.max(0,delta)/1050);
+    if(cue)cue.style.opacity=window.introCopyProgress>.02?'0':'1';
+    renderCopy();
+    if(window.introCopyProgress>=.995){copy.style.opacity='0';startLogoTurn()}
+  };
+  // Keep layout accurate if the viewport changes while the copy is passing the logo.
+  addEventListener('resize',renderCopy,{passive:true});
+  renderCopy();
+  // Home/reset in V24 restores phase=INTRO. Detect that reset and restore this new pre-roll too.
+  let prevPhase=phase;
+  (function watch(){
+    if(prevPhase!=='INTRO'&&phase==='INTRO'){window.introCopyProgress=0;copy.style.opacity='1';if(cue)cue.style.opacity='1';renderCopy()}
+    if(phase!=='INTRO')copy.style.opacity='0';
+    prevPhase=phase;requestAnimationFrame(watch)
+  })();
 })();
 </script>
 
