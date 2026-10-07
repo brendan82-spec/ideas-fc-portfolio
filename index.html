@@ -356,7 +356,7 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 
 
 <style id="v25-intro-copy-selected-work">
-/* V26 — scroll-driven Anton spiral intro. Existing logo turn, balls and work interactions remain untouched. */
+/* V27 — scroll-driven Anton spiral intro. Existing logo / balls / work sequence remains unchanged. */
 @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
 .gallery-head{display:none!important}
 .v23-browser,.v23-desktop{min-height:100%!important;height:100%!important}
@@ -366,78 +366,67 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
   .v23-row .n,.v23-row .t,.v23-row .c{font-size:14px!important;line-height:1.2!important}
   .v23-row{padding:3px 0!important}
 }
-.intro-spiral{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden;color:#050505;transition:opacity .16s linear}
-.intro-spiral svg{display:block;width:100%;height:100%;overflow:visible}
-.intro-spiral text{font-family:'Anton','Arial Narrow',Impact,sans-serif;font-size:14px;font-weight:400;letter-spacing:.035em;text-transform:uppercase;fill:#050505;paint-order:stroke;will-change:opacity}
-@media(max-width:700px){.intro-spiral text{font-size:14px;letter-spacing:.025em}}
+.intro-copy-sequence{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden;color:#050505;text-transform:uppercase}
+.spiral-char{position:absolute;left:50%;top:50%;font-family:'Anton','Arial Narrow',Impact,sans-serif;font-weight:400;line-height:1;white-space:pre;transform-origin:50% 50%;will-change:transform,opacity,filter}
+@media(prefers-reduced-motion:reduce){.spiral-char{filter:none!important}}
 </style>
 <script id="v25-intro-copy-selected-work-js">
 (()=>{
-  const stage=document.getElementById('stage'), logo=document.getElementById('heroLogo'), cue=document.getElementById('cue');
+  const stage=document.getElementById('stage'),logo=document.getElementById('heroLogo'),cue=document.getElementById('cue');
   if(!stage||!logo)return;
-  const NS='http://www.w3.org/2000/svg';
-  const copy=document.createElement('div'); copy.className='intro-spiral'; copy.setAttribute('aria-hidden','true');
-  const svg=document.createElementNS(NS,'svg'); svg.setAttribute('preserveAspectRatio','none');
-  const defs=document.createElementNS(NS,'defs');
-  const path=document.createElementNS(NS,'path'); path.id='ideasSpiralPath'; path.setAttribute('fill','none');
-  defs.appendChild(path); svg.appendChild(defs);
-  const textEl=document.createElementNS(NS,'text');
-  const textPath=document.createElementNS(NS,'textPath'); textPath.setAttribute('href','#ideasSpiralPath'); textPath.setAttribute('startOffset','0');
-  const sentence='CREATE IDEAS SO UNEXPECTED AND POWERFUL THEY DON’T JUST CATCH THE EYE BUT HIJACK THE BRAIN AND EXPLODE IN THE MIND.';
-  /* Repeat the statement so the path reads as one continuous typographic spiral, like the reference. */
-  textPath.textContent=(sentence+'   •   ').repeat(9);
-  textEl.appendChild(textPath); svg.appendChild(textEl); copy.appendChild(svg); stage.appendChild(copy);
+  const sentence='CREATE IDEAS SO UNEXPECTED AND POWERFUL THEY DON’T JUST CATCH THE EYE BUT HIJACK THE BRAIN AND EXPLODE IN THE MIND. ';
+  const copy=document.createElement('div');copy.className='intro-copy-sequence';copy.setAttribute('aria-hidden','true');
+  const chars=[...sentence].map(ch=>{const e=document.createElement('span');e.className='spiral-char';e.textContent=ch===' '?'\u00a0':ch;copy.appendChild(e);return e});
+  stage.appendChild(copy);
   window.introCopyProgress=0;
-  const clamp01=v=>Math.max(0,Math.min(1,v));
-  let pathLength=1;
-  function buildSpiral(){
-    const sr=stage.getBoundingClientRect(), lr=logo.getBoundingClientRect();
-    const w=Math.max(1,sr.width), h=Math.max(1,sr.height), cx=w/2, cy=h/2;
-    svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
-    /* Keep a clean ~40px moat around the stationary logo, then open the spiral to beyond the frame. */
-    const inner=Math.max(lr.width,lr.height)/2+40;
-    const outer=Math.hypot(w,h)*.68;
-    const turns=matchMedia('(max-width:700px)').matches?4.15:4.8;
-    const steps=420, pts=[];
-    for(let i=0;i<=steps;i++){
-      const q=i/steps;
-      const theta=(turns*2*Math.PI*q)-Math.PI/2;
-      const r=inner+(outer-inner)*q;
-      /* Slight vertical compression gives the photographic/reference perspective while remaining a true spiral. */
-      const x=cx+Math.cos(theta)*r;
-      const y=cy+Math.sin(theta)*r*.84;
-      pts.push(`${i?'L':'M'}${x.toFixed(2)},${y.toFixed(2)}`);
-    }
-    path.setAttribute('d',pts.join(' '));
-    try{pathLength=path.getTotalLength()||1}catch(e){pathLength=1}
-    renderCopy();
-  }
+  const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+  const smooth=t=>t*t*(3-2*t);
   function renderCopy(){
-    const p=window.introCopyProgress;
-    /* Start outside, scroll the sentence inward, then let the final words clear before the existing logo rotation. */
-    const offset=(1-p)*pathLength*.82 - pathLength*.08;
-    textPath.setAttribute('startOffset',String(offset));
-    const enter=clamp01(p/.08), exit=clamp01((1-p)/.08);
-    textEl.style.opacity=String(Math.min(enter,exit));
+    const p=clamp(window.introCopyProgress),sr=stage.getBoundingClientRect(),lr=logo.getBoundingClientRect();
+    const W=sr.width,H=sr.height,small=Math.min(W,H),mobile=W<701;
+    /* Inner edge hugs the logo with 34–40px breathing room. */
+    const inner=Math.max(lr.width,lr.height)/2+(mobile?30:38);
+    /* Outer edge runs well beyond the viewport so the foreground letters crop like the reference. */
+    const outer=Math.hypot(W,H)*.68;
+    const turns=mobile?2.15:2.55;
+    const baseAngle=-Math.PI*.52 + p*Math.PI*2.35;
+    const travel=p*.46; // scroll pulls the sentence deeper into the spiral
+    chars.forEach((el,i)=>{
+      const u=i/Math.max(1,chars.length-1);
+      /* Text begins in the foreground: first characters are largest/outside, then reduce toward logo. */
+      const depth=clamp(u+travel,0,1.12);
+      const r=outer-(outer-inner)*Math.min(depth,1);
+      const theta=baseAngle + depth*turns*Math.PI*2;
+      const x=Math.cos(theta)*r,y=Math.sin(theta)*r;
+      /* True perspective scale: large at foreground, small/tight at centre. */
+      const rn=clamp((r-inner)/Math.max(1,outer-inner));
+      const font=mobile?(13+rn*48):(15+rn*92);
+      const tangent=theta+Math.PI/2;
+      const fadeIn=clamp((u+p*.9)*8);
+      const fadeOut=clamp((1.16-depth)*7);
+      const edgeBlur=rn>.78?smooth((rn-.78)/.22)*(mobile?1.4:3.2):0;
+      el.style.fontSize=font+'px';
+      el.style.opacity=String(fadeIn*fadeOut);
+      el.style.filter=`blur(${edgeBlur}px)`;
+      el.style.transform=`translate(-50%,-50%) translate(${x}px,${y}px) rotate(${tangent}rad)`;
+    });
     copy.style.opacity=phase==='INTRO'?'1':'0';
   }
   window.advanceIntroCopy=function(delta){
     if(phase!=='INTRO')return;
-    window.introCopyProgress=clamp01(window.introCopyProgress+Math.max(0,delta)/1500);
-    if(cue)cue.style.opacity=window.introCopyProgress>.015?'0':'1';
+    window.introCopyProgress=clamp(window.introCopyProgress+Math.max(0,delta)/1350);
+    if(cue)cue.style.opacity=window.introCopyProgress>.02?'0':'1';
     renderCopy();
     if(window.introCopyProgress>=.995){copy.style.opacity='0';startLogoTurn()}
   };
-  addEventListener('resize',buildSpiral,{passive:true});
-  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(buildSpiral); else buildSpiral();
-  buildSpiral();
+  addEventListener('resize',renderCopy,{passive:true});
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(renderCopy);
+  renderCopy();
   let prevPhase=phase;
   (function watch(){
-    if(prevPhase!=='INTRO'&&phase==='INTRO'){
-      window.introCopyProgress=0;copy.style.opacity='1';if(cue)cue.style.opacity='1';buildSpiral();
-    }
+    if(prevPhase!=='INTRO'&&phase==='INTRO'){window.introCopyProgress=0;copy.style.opacity='1';if(cue)cue.style.opacity='1';renderCopy()}
     if(phase!=='INTRO')copy.style.opacity='0';
-    prevPhase=phase;requestAnimationFrame(watch);
+    prevPhase=phase;requestAnimationFrame(watch)
   })();
 })();
 </script>
