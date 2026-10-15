@@ -335,7 +335,7 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 
 
 <style id="v25-intro-copy-selected-work">
-/* Spacing fix — wider pitch between revolutions, measured glyph spacing and word gaps. */
+/* V29 — word-by-word reveal; every letter follows one continuous circular spiral. */
 @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
 .gallery-head{display:none!important}
 .v23-browser,.v23-desktop{min-height:100%!important;height:100%!important}
@@ -362,76 +362,37 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
   window.introCopyProgress=0;
   const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
   const ease=t=>1-Math.pow(1-clamp(t),3);
-  // Measure the entire sentence as one continuous path: word spacing and
-  // character advances are based on actual Anton glyph widths, not word index.
-  const measure=document.createElement('canvas').getContext('2d');
   function layout(){
     const p=clamp(window.introCopyProgress),sr=stage.getBoundingClientRect(),lr=logo.getBoundingClientRect();
     const W=sr.width,H=sr.height,small=Math.min(W,H),mobile=W<701;
-    // A real logarithmic spiral: the distance between rings contracts with depth.
-    // Its pitch is proportional to radius, so adjacent rings cannot collide when
-    // glyph height is capped to the local pitch.
-    const inner=Math.max(lr.width,lr.height)/2+(mobile?20:28);
-    const outer=Math.max(inner+20,Math.min(W*.39,H*.40,small*.43));
-    const turns=mobile?1.72:1.88,sweep=turns*Math.PI*2;
+    /* MIND finishes close to the logo; CREATE starts inside the visible frame, not off-screen. */
+    const inner=Math.max(lr.width,lr.height)/2+(mobile?22:30);
+    const outer=Math.max(inner+24, Math.min(W*.39,H*.40,mobile?small*.40:small*.43));
+    const turns=mobile?2.05:2.18;
     const startAngle=-Math.PI*.42;
-    const ratio=inner/outer;
-    const radiusAt=t=>outer*Math.pow(ratio,t);
-    const samples=2000,arc=new Float64Array(samples+1);
-    for(let i=1;i<=samples;i++){
-      const t=(i-.5)/samples,r=radiusAt(t);
-      arc[i]=arc[i-1]+Math.hypot(r,r*Math.log(ratio)/sweep)*sweep/samples;
-    }
-    const length=arc[samples];
-    // Use actual measured widths and a stable index for every glyph.
-    // Gaps are separate objects and must never advance the glyph index.
-    const items=[];
-    let glyphIndex=0;
-    WORDS.forEach((word,wi)=>{
-      [...word].forEach(ch=>items.push({wi,ch,e:letters[glyphIndex++].e}));
-      if(wi<WORDS.length-1)items.push({gap:true});
-    });
-    const baseSize=mobile?38:76;
-    const minSize=mobile?11:17;
-    const fontAt=t=>minSize+(baseSize-minSize)*Math.pow(1-t,1.35);
-    const pitchAt=t=>radiusAt(t)-radiusAt(Math.min(1,t+1/turns));
-    // Solve advance positions iteratively because the type scales with depth.
-    let positions=[],total=0;
-    for(let pass=0;pass<7;pass++){
-      let cursor=0;positions=[];
-      items.forEach((it,i)=>{
-        const t=pass===0?i/items.length:clamp((cursor/Math.max(total,1)));
-        const font=Math.min(fontAt(t),Math.max(9,pitchAt(t)*.65));
-        measure.font=`${font}px Anton, Impact, sans-serif`;
-        const advance=it.gap?font*.68:Math.max(measure.measureText(it.ch).width*1.13,font*.28);
-        positions.push({start:cursor,advance,font});cursor+=advance;
-      });
-      total=cursor;
-    }
-    // If the sentence is longer than the path, reduce type sizes AND recompute
-    // advances. Do not just squeeze character positions (that caused overlap).
-    const globalScale=Math.min(1,length/Math.max(total,1)*.94);
-    const occupied=total*globalScale;
-    let cursor=Math.max(0,(length-occupied)*.18);
     const visibleFloat=p*WORDS.length;
-    items.forEach((it,i)=>{
-      const advance=positions[i].advance*globalScale;
-      const center=cursor+advance/2;cursor+=advance;
-      if(it.gap)return;
-      let lo=0,hi=samples;
-      while(lo<hi){const mid=(lo+hi)>>1;if(arc[mid]<center)lo=mid+1;else hi=mid;}
-      const t=clamp(lo/samples),theta=startAngle+t*sweep,r=radiusAt(t);
-      const font=Math.min(positions[i].font*globalScale,pitchAt(t)*.65);
-      const reveal=ease(clamp(visibleFloat-it.wi,0,1));
-      const fly=(1-reveal)*Math.min(90,small*.13);
-      const x=Math.cos(theta)*(r+fly),y=Math.sin(theta)*(r+fly);
-      const tangent=Math.atan2(r*Math.cos(theta)+r*Math.log(ratio)/sweep*Math.sin(theta),
-                               -r*Math.sin(theta)+r*Math.log(ratio)/sweep*Math.cos(theta));
-      const e=it.e;
+    letters.forEach(({e,wi,ci,n})=>{
+      const wu=wi/(WORDS.length-1);
+      /* Whole sentence is one smooth spiral, outer words large and inner words progressively smaller. */
+      const shaped=Math.pow(wu,.92);
+      const baseTheta=startAngle+shaped*turns*Math.PI*2;
+      const baseR=outer-(outer-inner)*shaped;
+      const rn=clamp((baseR-inner)/(outer-inner));
+      let font=mobile?(15+rn*24):(24+rn*53);
+      /* Each character advances along the same spiral, so words bend rather than staying straight. */
+      const charArc=(font*.58)/Math.max(baseR,1);
+      const centered=ci-(n-1)/2;
+      const theta=baseTheta+centered*charArc;
+      const radialStep=(outer-inner)/(turns*Math.PI*2);
+      const r=baseR-centered*charArc*radialStep;
+      const x=Math.cos(theta)*r,y=Math.sin(theta)*r;
+      const tangent=theta+Math.PI/2;
+      const reveal=ease(clamp(visibleFloat-wi,0,1));
+      const enter=.78+.22*reveal;
       e.style.fontSize=font+'px';
       e.style.opacity=String(reveal);
-      e.style.filter=`blur(${(1-reveal)*4}px)`;
-      e.style.transform=`translate(-50%,-50%) translate(${x}px,${y}px) rotate(${tangent}rad) scale(${.85+.15*reveal})`;
+      e.style.filter=`blur(${(1-reveal)*3}px)`;
+      e.style.transform=`translate(-50%,-50%) translate(${x}px,${y}px) rotate(${tangent}rad) scale(${enter})`;
     });
     copy.style.opacity=phase==='INTRO'?'1':'0';
   }
@@ -502,43 +463,52 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 @media(max-width:900px){:root{--nav-h:76px}}
 @media(max-width:700px){.v23-mobile{padding-top:14px!important}.gallery:not(.work-docked) .v23-browser{overflow:hidden!important}}
 </style>
-
-
-<script id="v33-scroll-recovery">
+<script id="v32-mobile-single-owner">
 (()=>{
  const g=document.getElementById('gallery'),st=document.getElementById('stage');
  if(!g||!st)return;
- const mobile=()=>innerWidth<=700;
- const setDock=(v)=>{
+ let lastY=0,owner='',gestureStarted=false;
+ const mobile=()=>matchMedia('(max-width:700px)').matches;
+ const setTransition=v=>{
    transition=clamp(v,0,1);
-   if(transition>=.999){transition=1;phase='WORK';g.classList.add('work-docked');st.style.visibility='hidden';}
-   else {phase=transition<=.001?'BALLS':'TRANSITION';g.classList.remove('work-docked');g.scrollTop=0;st.style.visibility='visible';}
-   g.style.transform=`translateY(${(1-transition)*100}%)`;
+   if(transition>=1){
+     transition=1;phase='WORK';g.style.transform='translateY(0%)';
+     g.classList.add('work-docked');st.style.visibility='hidden';
+   }else{
+     phase=transition<=0?'BALLS':'TRANSITION';
+     g.classList.remove('work-docked');g.scrollTop=0;
+     st.style.visibility='visible';
+     g.style.transform=`translateY(${(1-transition)*100}%)`;
+   }
  };
- window.addEventListener('wheel',e=>{
-   if(mobile()||caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;
-   if(phase==='WORK' && (e.deltaY>=0 || g.scrollTop>1))return;
-   e.preventDefault();e.stopImmediatePropagation();
-   if(phase==='INTRO'){if(e.deltaY>0)window.advanceIntroCopy?.(e.deltaY);return;}
-   if(phase==='ROTATING')return;
-   setDock(transition+e.deltaY/900);
- },{capture:true,passive:false});
- // Allow touch scrolling to reach the stage, including when its canvas captures hit tests.
- let y=0,active=false;
- window.addEventListener('touchstart',e=>{
+ document.addEventListener('touchstart',e=>{
    if(!mobile()||e.touches.length!==1||caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;
-   y=e.touches[0].clientY;active=true;
+   lastY=e.touches[0].clientY;
+   owner=(phase==='BALLS'||phase==='TRANSITION')?'transition':
+     (phase==='WORK'&&g.scrollTop<=1?'worktop':'');
+   gestureStarted=false;
  },{capture:true,passive:true});
- window.addEventListener('touchmove',e=>{
-   if(!mobile()||!active||e.touches.length!==1)return;
-   const next=e.touches[0].clientY,delta=y-next;y=next;
-   if(phase==='WORK' && (delta>=0 || g.scrollTop>1))return;
-   e.preventDefault();e.stopImmediatePropagation();
-   if(phase==='INTRO'){if(delta>0)window.advanceIntroCopy?.(delta*1.4);return;}
-   if(phase==='ROTATING')return;
-   setDock(transition+delta/Math.max(320,st.clientHeight*.9));
+ document.addEventListener('touchmove',e=>{
+   if(!mobile()||!owner||e.touches.length!==1)return;
+   const y=e.touches[0].clientY,dy=y-lastY;
+   if(owner==='worktop'&&dy<0){owner='';return;} // Normal scrolling inside docked Work.
+   if(owner==='worktop'&&dy>0){owner='transition';gestureStarted=true;}
+   if(owner==='transition'){
+     e.preventDefault();e.stopImmediatePropagation();
+     setTransition(transition-dy/Math.max(300,st.clientHeight*.95));
+     gestureStarted=true;
+   }
+   lastY=y;
  },{capture:true,passive:false});
- window.addEventListener('touchend',()=>{active=false;},{capture:true,passive:true});
- window.addEventListener('touchcancel',()=>{active=false;},{capture:true,passive:true});
+ document.addEventListener('touchend',()=>{owner='';gestureStarted=false},{capture:true,passive:true});
+ // Work may scroll internally ONLY when its whole module has reached the navbar.
+ function guard(){
+   if(mobile()){
+     const docked=phase==='WORK'&&transition>=1;
+     if(docked){g.classList.add('work-docked');g.style.transform='translateY(0%)';st.style.visibility='hidden';}
+     else{g.classList.remove('work-docked');if(g.scrollTop)g.scrollTop=0;}
+   }
+   requestAnimationFrame(guard);
+ }guard();
 })();
 </script>
