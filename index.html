@@ -77,12 +77,13 @@ function physicsStep(dt){
   // Re-clamp after collision resolution so no ball can be left beyond the visible side walls.
   for(const b of balls){b.x=clamp(b.x,b.r,W-b.r);if(b.y+b.r>floor)b.y=floor-b.r}
 }
-function render(t){const dt=Math.min(1.8,(t-last)/16.67);last=t;ctx.clearRect(0,0,W,H);if(phase==='ROTATING'){logoTurn=Math.min(logoTurnTarget,logoTurn+8.5*dt);heroLogo.style.transform=`translate(-50%,-50%) rotate(${logoTurn}deg)`;if(logoTurn>=logoTurnTarget)releaseBalls()}physicsStep(dt);if(phase!=='INTRO'&&phase!=='ROTATING')for(const b of balls)drawBall(b);gallery.style.transform=`translateY(${(1-transition)*100}%)`;gallery.classList.toggle('work-docked',phase==='WORK'&&transition>=1);requestAnimationFrame(render)}
+function render(t){const dt=Math.min(1.8,(t-last)/16.67);last=t;ctx.clearRect(0,0,W,H);if(phase==='ROTATING'){logoTurn=Math.min(logoTurnTarget,logoTurn+8.5*dt);heroLogo.style.transform=`translate(-50%,-50%) rotate(${logoTurn}deg)`;if(logoTurn>=logoTurnTarget)releaseBalls()}physicsStep(dt);if(phase!=='INTRO'&&phase!=='ROTATING')for(const b of balls)drawBall(b);gallery.style.transform=`translateY(${(1-transition)*100}%)`;requestAnimationFrame(render)}
 img.onload=()=>{sampleMask();spawnBalls(false);resizePhysics()};addEventListener('resize',resizePhysics,{passive:true});requestAnimationFrame(render);
 // Desktop wheel/scroll maps smoothly to the same states.
-addEventListener('wheel',e=>{if(caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;if(phase==='INTRO'&&e.deltaY>0){e.preventDefault();if(typeof advanceIntroCopy==='function'){advanceIntroCopy(e.deltaY)}else{startLogoTurn()}return}if(phase==='ROTATING'){e.preventDefault();return}if((phase==='BALLS'||phase==='TRANSITION')&&stage.style.visibility!=='hidden'){e.preventDefault();phase='TRANSITION';transition=clamp(transition+e.deltaY/900);if(transition>=1){phase='WORK';transition=1;stage.style.visibility='hidden'}if(transition<=.001){phase='BALLS';transition=0}}},{passive:false});
+addEventListener('wheel',e=>{if(caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;if(phase==='INTRO'&&e.deltaY>0){e.preventDefault();if(typeof advanceIntroCopy==='function'){advanceIntroCopy(e.deltaY)}else{startLogoTurn()}return}if(phase==='ROTATING'){e.preventDefault();return}if((phase==='BALLS'||phase==='TRANSITION')&&stage.style.visibility!=='hidden'){e.preventDefault();phase='TRANSITION';transition=clamp(transition+e.deltaY/900);if(transition>=.995){phase='WORK';transition=1;stage.style.visibility='hidden'}if(transition<=.001){phase='BALLS';transition=0}}},{passive:false});
+let sy=0,lastY=0,gesture='';stage.addEventListener('touchstart',e=>{if(e.touches.length!==1)return;sy=lastY=e.touches[0].clientY;gesture='';touching=true},{passive:true});stage.addEventListener('touchmove',e=>{if(e.touches.length!==1)return;const y=e.touches[0].clientY,dy=y-lastY,total=y-sy;if(!gesture&&Math.abs(total)>14)gesture=total<0?'up':'down';if(phase==='INTRO'){if(total<-8){e.preventDefault();if(typeof advanceIntroCopy==='function'){advanceIntroCopy(Math.max(0,-dy)*2.2)}else if(total<-38){startLogoTurn()}sy=y}}else if(phase==='ROTATING'){e.preventDefault()}else if(phase==='BALLS'||phase==='TRANSITION'){e.preventDefault();phase='TRANSITION';transition=clamp(transition-dy/(H*1.35));if(transition<=.001)phase='BALLS';lastY=y}},{passive:false});stage.addEventListener('touchend',()=>{touching=false;if(transition>.88){transition=1;phase='WORK';stage.style.visibility='hidden'}else if(transition<.08){transition=0;phase='BALLS'}},{passive:true});
 // From the top of Work, a deliberate downward swipe returns to the transition/physics stage.
-gallery.addEventListener('wheel',e=>{if(gallery.scrollTop<=1&&e.deltaY<0){e.preventDefault();stage.style.visibility='visible';phase='TRANSITION';transition=clamp(transition+e.deltaY/900)}},{passive:false});
+let gy=0;gallery.addEventListener('touchstart',e=>{if(gallery.scrollTop<=1&&e.touches.length===1)gy=e.touches[0].clientY;else gy=0},{passive:true});gallery.addEventListener('touchmove',e=>{if(!gy||gallery.scrollTop>1)return;const d=e.touches[0].clientY-gy;if(d>18){e.preventDefault();stage.style.visibility='visible';phase='TRANSITION';transition=clamp(1-d/(H*.8));if(transition<.98)gallery.scrollTop=0}},{passive:false});gallery.addEventListener('touchend',()=>{gy=0;if(transition<.9){phase=transition<.05?'BALLS':'TRANSITION'}else{transition=1;phase='WORK';stage.style.visibility='hidden'}},{passive:true});gallery.addEventListener('wheel',e=>{if(gallery.scrollTop<=1&&e.deltaY<0){e.preventDefault();stage.style.visibility='visible';phase='TRANSITION';transition=clamp(transition+e.deltaY/900)}},{passive:false});
 
 </script>
 <style id="v20-selected-work-list">
@@ -155,7 +156,39 @@ html,body,a,button,[role="button"],.menu-row,.project-row,.case-close,.menu-clos
 body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;visibility:hidden!important}
 }
 </style>
-
+<script id="v22-mobile-hard-fix-script">
+(()=>{
+ const g=document.getElementById('gallery'),st=document.getElementById('stage');
+ if(!g||!st)return;
+ let start=0,last=0,owner='',handled=false;
+ document.addEventListener('touchstart',e=>{
+   if(e.touches.length!==1||caseEl.classList.contains('open')||menuPanel.classList.contains('open')){owner='';return}
+   start=last=e.touches[0].clientY;handled=false;
+   owner=(phase==='INTRO'||phase==='ROTATING'||phase==='BALLS'||phase==='TRANSITION')?'intro':(phase==='WORK'&&g.scrollTop<=1?'worktop':'');
+ },{capture:true,passive:true});
+ document.addEventListener('touchmove',e=>{
+   if(!owner||e.touches.length!==1)return;
+   const y=e.touches[0].clientY,dy=y-last,total=y-start;last=y;
+   if(owner==='intro'){
+     if(phase==='INTRO'&&dy<0){e.preventDefault();e.stopImmediatePropagation();window.advanceIntroCopy?.(-dy*2.7)}
+     else if(phase==='ROTATING'){e.preventDefault();e.stopImmediatePropagation()}
+     else if(phase==='BALLS'||phase==='TRANSITION'){
+       e.preventDefault();e.stopImmediatePropagation();phase='TRANSITION';transition=clamp(transition-dy/(H*.92));
+       if(transition>=.999){transition=1;phase='WORK';g.classList.add('work-docked');g.scrollTop=0;st.style.visibility='hidden'}
+       else if(transition<=.001){transition=0;phase='BALLS'}
+     }
+   }else if(owner==='worktop'&&total>10){
+     e.preventDefault();e.stopImmediatePropagation();handled=true;g.classList.remove('work-docked');g.scrollTop=0;
+     st.style.visibility='visible';phase='TRANSITION';transition=clamp(1-total/(H*.92));
+   }
+ },{capture:true,passive:false});
+ document.addEventListener('touchend',()=>{
+   if(owner==='intro'&&phase==='TRANSITION'&&transition>.985){transition=1;phase='WORK';g.classList.add('work-docked');st.style.visibility='hidden'}
+   if(owner==='worktop'&&handled){if(transition>.94){transition=1;phase='WORK';g.classList.add('work-docked');st.style.visibility='hidden'}else if(transition<.02){transition=0;phase='BALLS'}}
+   owner='';handled=false;
+ },{capture:true,passive:true});
+})();
+</script>
 
 <style id="v23-agreed">
 @media(hover:hover) and (pointer:fine){html,body,body *{cursor:none!important}#ideasCursor{position:fixed;left:0;top:0;width:16px;height:16px;z-index:99999;pointer-events:none;will-change:transform}}
@@ -348,71 +381,78 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 .intro-copy-sequence{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden;color:#050505;text-transform:uppercase}
 .spiral-letter{position:absolute;left:50%;top:50%;font-family:'Anton','Arial Narrow',Impact,sans-serif;font-weight:400;line-height:1;letter-spacing:0;white-space:pre;transform-origin:50% 50%;will-change:transform,opacity,filter;opacity:0}
 @media(prefers-reduced-motion:reduce){.spiral-letter{filter:none!important;transition:none!important}}
+@media(max-width:700px){.hero-logo{width:min(44vw,30dvh)!important}}
 </style>
 <script id="v25-intro-copy-selected-work-js">
 (()=>{
-  const stage=document.getElementById('stage'),logo=document.getElementById('heroLogo'),cue=document.getElementById('cue');
-  if(!stage||!logo)return;
-  const WORDS=['CREATE','IDEAS','SO','POWERFUL','THEY','DON’T','JUST','CATCH','THE','EYE','BUT','HIJACK','THE','BRAIN','AND','EXPLODE','IN','THE','MIND'];
-  const copy=document.createElement('div');copy.className='intro-copy-sequence';copy.setAttribute('aria-hidden','true');stage.appendChild(copy);
-  const letters=[];
-  WORDS.forEach((word,wi)=>{
-    [...word].forEach((ch,ci)=>{const e=document.createElement('span');e.className='spiral-letter';e.textContent=ch;copy.appendChild(e);letters.push({e,wi,ci,n:word.length})});
-  });
-  window.introCopyProgress=0;
-  const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
-  const ease=t=>1-Math.pow(1-clamp(t),3);
-  function layout(){
-    const p=clamp(window.introCopyProgress),sr=stage.getBoundingClientRect(),lr=logo.getBoundingClientRect();
-    const W=sr.width,H=sr.height,small=Math.min(W,H),mobile=W<701;
-    /* MIND finishes close to the logo; CREATE starts inside the visible frame, not off-screen. */
-    const inner=Math.max(lr.width,lr.height)/2+(mobile?22:30);
-    const outer=Math.max(inner+24, Math.min(W*.39,H*.40,mobile?small*.40:small*.43));
-    const turns=mobile?2.05:2.18;
-    const startAngle=-Math.PI*.42;
-    const visibleFloat=p*WORDS.length;
-    letters.forEach(({e,wi,ci,n})=>{
-      const wu=wi/(WORDS.length-1);
-      /* Whole sentence is one smooth spiral, outer words large and inner words progressively smaller. */
-      const shaped=Math.pow(wu,.92);
-      const baseTheta=startAngle+shaped*turns*Math.PI*2;
-      const baseR=outer-(outer-inner)*shaped;
-      const rn=clamp((baseR-inner)/(outer-inner));
-      let font=mobile?(15+rn*24):(24+rn*53);
-      /* Each character advances along the same spiral, so words bend rather than staying straight. */
-      const charArc=(font*.58)/Math.max(baseR,1);
-      const centered=ci-(n-1)/2;
-      const theta=baseTheta+centered*charArc;
-      const radialStep=(outer-inner)/(turns*Math.PI*2);
-      const r=baseR-centered*charArc*radialStep;
-      const x=Math.cos(theta)*r,y=Math.sin(theta)*r;
-      const tangent=theta+Math.PI/2;
-      const reveal=ease(clamp(visibleFloat-wi,0,1));
-      const enter=.78+.22*reveal;
-      e.style.fontSize=font+'px';
-      e.style.opacity=String(reveal);
-      e.style.filter=`blur(${(1-reveal)*3}px)`;
-      e.style.transform=`translate(-50%,-50%) translate(${x}px,${y}px) rotate(${tangent}rad) scale(${enter})`;
-    });
-    copy.style.opacity=phase==='INTRO'?'1':'0';
-  }
-  window.advanceIntroCopy=function(delta){
-    if(phase!=='INTRO')return;
-    /* One complete word appears for each scroll step. */
-    window.introCopyProgress=clamp(window.introCopyProgress+Math.max(0,delta)/(WORDS.length*82));
-    if(cue)cue.style.opacity=window.introCopyProgress>.015?'0':'1';
-    layout();
-    if(window.introCopyProgress>=.999){window.introCopyProgress=1;layout();setTimeout(()=>{if(phase==='INTRO'){copy.style.opacity='0';startLogoTurn()}},180)}
-  };
-  addEventListener('resize',layout,{passive:true});
-  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(layout);
-  layout();
-  let prevPhase=phase;
-  (function watch(){
-    if(prevPhase!=='INTRO'&&phase==='INTRO'){window.introCopyProgress=0;copy.style.opacity='1';if(cue)cue.style.opacity='1';layout()}
-    if(phase!=='INTRO')copy.style.opacity='0';
-    prevPhase=phase;requestAnimationFrame(watch)
-  })();
+ const stage=document.getElementById('stage'),logo=document.getElementById('heroLogo'),cue=document.getElementById('cue');
+ if(!stage||!logo)return;
+ const WORDS=['CREATE','IDEAS','SO','UNEXPECTED','AND','POWERFUL','THEY','DON’T','JUST','CATCH','THE','EYE','BUT','HIJACK','THE','BRAIN','AND','EXPLODE','IN','THE','MIND'];
+ const copy=document.createElement('div');copy.className='intro-copy-sequence';copy.setAttribute('aria-hidden','true');stage.appendChild(copy);
+ const chars=[];WORDS.forEach((word,wi)=>[...word].forEach((ch,ci)=>{const el=document.createElement('span');el.className='spiral-letter';el.textContent=ch;copy.appendChild(el);chars.push({el,wi,ci,ch})}));
+ const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+ const ease=v=>1-Math.pow(1-clamp(v),3);
+ const context=document.createElement('canvas').getContext('2d');
+ window.introCopyProgress=0;
+ function layout(){
+   const sr=stage.getBoundingClientRect(),W=sr.width,H=sr.height,mobile=W<=700;
+   if(!W||!H)return;
+   // Genuine inward-contracting spiral, with no repeated per-word angles.
+   // The outermost sweep remains screen-sized; the inner end clears the logo.
+   const logoRadius=Math.min(logo.offsetWidth,logo.offsetHeight||logo.offsetWidth)/2;
+   const outer=mobile?Math.min(W*.475,H*.40):Math.min(W*.46,H*.465);
+   const inner=Math.min(outer*.70,logoRadius+(mobile?13:23));
+   const turns=mobile?1.72:2.10,sweep=turns*Math.PI*2;
+   const theta0=-Math.PI*.56;
+   const exponent=1.48; // ring pitch contracts continuously toward the centre
+   const radius=t=>inner+(outer-inner)*Math.pow(1-t,exponent);
+   const steps=1800,arc=new Float64Array(steps+1);let px=outer*Math.cos(theta0),py=outer*Math.sin(theta0);
+   for(let i=1;i<=steps;i++){
+     const t=i/steps,theta=theta0+t*sweep,r=radius(t),x=r*Math.cos(theta),y=r*Math.sin(theta);
+     arc[i]=arc[i-1]+Math.hypot(x-px,y-py);px=x;py=y;
+   }
+   const len=arc[steps];
+   const fontAt=t=>mobile?(12+25*Math.pow(1-t,1.18)):(19+91*Math.pow(1-t,1.24));
+   const advanceAt=(ch,t)=>{const fs=fontAt(t);context.font=`${fs}px Anton, Impact, sans-serif`;return Math.max(fs*.28,context.measureText(ch).width*1.09)};
+   // Solve positions along *one* path by glyph width, rather than distributing words by index.
+   const segments=[];let guess=0;
+   for(const [wi,word] of WORDS.entries()){
+     for(const ch of word){const t=clamp(guess/len);const w=advanceAt(ch,t);segments.push({wi,ch,advance:w});guess+=w}
+     if(wi<WORDS.length-1){const w=fontAt(clamp(guess/len))*.68;segments.push({gap:true,advance:w});guess+=w}
+   }
+   for(let pass=0;pass<5;pass++){
+     let at=0;for(const item of segments){const t=clamp((at+item.advance*.5)/Math.max(guess,1));item.advance=item.gap?fontAt(t)*.68:advanceAt(item.ch,t);at+=item.advance}guess=at;
+   }
+   const fit=Math.min(1,len/Math.max(guess,1)*.965);
+   let cursor=Math.max(0,(len-guess*fit)*.12),charIndex=0;
+   const visible=window.introCopyProgress*WORDS.length;
+   for(const item of segments){
+     const middle=cursor+item.advance*fit*.5;cursor+=item.advance*fit;
+     if(item.gap)continue;
+     let lo=0,hi=steps;while(lo<hi){const mid=(lo+hi)>>1;if(arc[mid]<middle)lo=mid+1;else hi=mid}
+     const t=clamp(lo/steps),theta=theta0+t*sweep,r=radius(t);
+     const tangent=theta+Math.PI/2;
+     const el=chars[charIndex++].el;
+     const reveal=ease(visible-item.wi);
+     const spray=(1-reveal)*(mobile?30:65);
+     el.style.fontSize=(fontAt(t)*fit)+'px';
+     el.style.opacity=String(reveal);
+     el.style.filter=`blur(${(1-reveal)*3}px)`;
+     el.style.transform=`translate(-50%,-50%) translate(${Math.cos(theta)*(r+spray)}px,${Math.sin(theta)*(r+spray)}px) rotate(${tangent}rad) scale(${.82+.18*reveal})`;
+   }
+   copy.style.opacity=phase==='INTRO'?'1':'0';
+ }
+ let ending=false;
+ window.advanceIntroCopy=function(delta){
+   if(phase!=='INTRO'||ending)return;
+   window.introCopyProgress=clamp(window.introCopyProgress+Math.max(0,delta)/(WORDS.length*75));
+   if(cue)cue.style.opacity=window.introCopyProgress>.015?'0':'1';
+   layout();
+   if(window.introCopyProgress>=.999){ending=true;setTimeout(()=>{if(phase==='INTRO'){copy.style.opacity='0';startLogoTurn()}ending=false},260)}
+ };
+ addEventListener('resize',layout,{passive:true});if(document.fonts?.ready)document.fonts.ready.then(layout);layout();
+ let previous=phase;
+ (function watch(){if(previous!=='INTRO'&&phase==='INTRO'){window.introCopyProgress=0;ending=false;if(cue)cue.style.opacity='1';layout()}if(phase!=='INTRO')copy.style.opacity='0';previous=phase;requestAnimationFrame(watch)})();
 })();
 </script>
 
@@ -426,7 +466,26 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 .gallery.work-docked{overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
 </style>
 
-
+<script id="v15-work-lock">
+(()=>{
+ const g=document.getElementById('gallery'); if(!g) return;
+ const head=g.querySelector('.gallery-head');
+ let docked=false, startY=0, lastY=0;
+ function dock(){ if(docked)return; docked=true; g.classList.add('work-docked'); g.scrollTop=0; }
+ function undock(){ if(!docked)return; docked=false; g.classList.remove('work-docked'); g.scrollTop=0; }
+ // transition===1 is the exact moment the rigid module has reached the nav.
+ const watch=()=>{
+   const tr=(typeof transition==='number')?transition:0;
+   if(tr>=.999 && phase==='WORK') dock();
+   else if(tr<.999) undock();
+   requestAnimationFrame(watch);
+ }; requestAnimationFrame(watch);
+ // At the top of docked work, downward motion reconnects the entire module first.
+ g.addEventListener('touchstart',e=>{if(docked&&g.scrollTop<=1&&e.touches.length===1){startY=lastY=e.touches[0].clientY}}, {passive:true});
+ g.addEventListener('touchmove',e=>{if(!docked||g.scrollTop>1||!startY)return; const y=e.touches[0].clientY,d=y-lastY;if(d>0){e.preventDefault(); undock(); stage.style.visibility='visible'; phase='TRANSITION'; transition=clamp(1-d/(H*.9));} lastY=y;},{passive:false});
+ g.addEventListener('touchend',()=>{startY=lastY=0},{passive:true});
+})();
+</script>
 
 <style id="v16-case-ending">
 /* V16: every case study ends in a fluorescent Impact module. */
@@ -449,66 +508,16 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 @media(max-width:900px){.case-hero-copy{left:0!important;padding:0 18px 34px!important}}
 </style>
 
-
-
-<style id="v32-structural-nav-and-mobile-dock">
-/* The navigation is a permanent, independent layer. */
-:root{--nav-h:72px}
-.topbar{position:fixed!important;top:0!important;left:0!important;right:0!important;z-index:100000!important;background:#fff!important;isolation:isolate!important}
-.stage,.gallery,.case{top:var(--nav-h)!important;height:calc(100dvh - var(--nav-h))!important;bottom:auto!important;overflow:hidden!important}
-.stage{isolation:isolate!important}
-.intro-copy-sequence{position:absolute!important;inset:0!important;overflow:hidden!important;clip-path:inset(0)!important;contain:paint!important}
-.gallery:not(.work-docked){overflow:hidden!important;touch-action:none!important}
-.gallery.work-docked{overflow-y:auto!important;overflow-x:hidden!important;touch-action:pan-y!important;overscroll-behavior-y:contain!important}
-@media(max-width:900px){:root{--nav-h:76px}}
-@media(max-width:700px){.v23-mobile{padding-top:14px!important}.gallery:not(.work-docked) .v23-browser{overflow:hidden!important}}
-</style>
-<script id="v32-mobile-single-owner">
+<script id="v17-lock-guard">
 (()=>{
- const g=document.getElementById('gallery'),st=document.getElementById('stage');
- if(!g||!st)return;
- let lastY=0,owner='',gestureStarted=false;
- const mobile=()=>matchMedia('(max-width:700px)').matches;
- const setTransition=v=>{
-   transition=clamp(v,0,1);
-   if(transition>=1){
-     transition=1;phase='WORK';g.style.transform='translateY(0%)';
-     g.classList.add('work-docked');st.style.visibility='hidden';
-   }else{
-     phase=transition<=0?'BALLS':'TRANSITION';
-     g.classList.remove('work-docked');g.scrollTop=0;
-     st.style.visibility='visible';
-     g.style.transform=`translateY(${(1-transition)*100}%)`;
-   }
+ const g=document.getElementById('gallery');
+ if(!g)return;
+ // Guard against any earlier listener changing scrollTop while the module is still entering.
+ const keepLocked=()=>{
+   const docked=g.classList.contains('work-docked');
+   if(!docked && g.scrollTop!==0) g.scrollTop=0;
+   requestAnimationFrame(keepLocked);
  };
- document.addEventListener('touchstart',e=>{
-   if(!mobile()||e.touches.length!==1||caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;
-   lastY=e.touches[0].clientY;
-   owner=(phase==='BALLS'||phase==='TRANSITION')?'transition':
-     (phase==='WORK'&&g.scrollTop<=1?'worktop':'');
-   gestureStarted=false;
- },{capture:true,passive:true});
- document.addEventListener('touchmove',e=>{
-   if(!mobile()||!owner||e.touches.length!==1)return;
-   const y=e.touches[0].clientY,dy=y-lastY;
-   if(owner==='worktop'&&dy<0){owner='';return;} // Normal scrolling inside docked Work.
-   if(owner==='worktop'&&dy>0){owner='transition';gestureStarted=true;}
-   if(owner==='transition'){
-     e.preventDefault();e.stopImmediatePropagation();
-     setTransition(transition-dy/Math.max(300,st.clientHeight*.95));
-     gestureStarted=true;
-   }
-   lastY=y;
- },{capture:true,passive:false});
- document.addEventListener('touchend',()=>{owner='';gestureStarted=false},{capture:true,passive:true});
- // Work may scroll internally ONLY when its whole module has reached the navbar.
- function guard(){
-   if(mobile()){
-     const docked=phase==='WORK'&&transition>=1;
-     if(docked){g.classList.add('work-docked');g.style.transform='translateY(0%)';st.style.visibility='hidden';}
-     else{g.classList.remove('work-docked');if(g.scrollTop)g.scrollTop=0;}
-   }
-   requestAnimationFrame(guard);
- }guard();
+ requestAnimationFrame(keepLocked);
 })();
 </script>
