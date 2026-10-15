@@ -368,77 +368,66 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
   function layout(){
     const p=clamp(window.introCopyProgress),sr=stage.getBoundingClientRect(),lr=logo.getBoundingClientRect();
     const W=sr.width,H=sr.height,small=Math.min(W,H),mobile=W<701;
-    const inner=Math.max(lr.width,lr.height)/2+(mobile?22:30);
-    const outer=Math.max(inner+24,Math.min(W*.39,H*.40,mobile?small*.40:small*.43));
-    const turns=mobile?1.85:2.0, sweep=turns*Math.PI*2;
+    // A real logarithmic spiral: the distance between rings contracts with depth.
+    // Its pitch is proportional to radius, so adjacent rings cannot collide when
+    // glyph height is capped to the local pitch.
+    const inner=Math.max(lr.width,lr.height)/2+(mobile?20:28);
+    const outer=Math.max(inner+20,Math.min(W*.39,H*.40,small*.43));
+    const turns=mobile?1.72:1.88,sweep=turns*Math.PI*2;
     const startAngle=-Math.PI*.42;
-    // Perspective spiral: each revolution contracts by a fixed proportion.
-    // Both the baseline radius and type size recede together toward the logo.
-    const ratio=Math.max(.12,Math.min(.92,inner/outer));
+    const ratio=inner/outer;
     const radiusAt=t=>outer*Math.pow(ratio,t);
-    const fontAt=t=>(mobile?14+25*Math.pow(1-t,1.25):18+57*Math.pow(1-t,1.25));
-    // Integrate the true length of the curved exponential path.
-    const samples=480,arc=[0];
+    const samples=2000,arc=new Float64Array(samples+1);
     for(let i=1;i<=samples;i++){
       const t=(i-.5)/samples,r=radiusAt(t);
-      const radialSlope=r*Math.log(ratio)/sweep;
-      arc[i]=arc[i-1]+Math.hypot(r,radialSlope)*sweep/samples;
+      arc[i]=arc[i-1]+Math.hypot(r,r*Math.log(ratio)/sweep)*sweep/samples;
     }
-    const pathLength=arc[samples];
-    // Fit all glyphs into the available path with an explicit gap after words.
-    // This prevents adjacent words from sharing the same angular position.
+    const length=arc[samples];
+    // Use actual measured widths and a stable index for every glyph.
+    // Gaps are separate objects and must never advance the glyph index.
     const items=[];
-    let total=0;
+    let glyphIndex=0;
     WORDS.forEach((word,wi)=>{
-      [...word].forEach((ch,ci)=>{
-        const t=total/Math.max(pathLength,1);
-        measure.font=`${fontAt(clamp(t))}px Anton, Impact, sans-serif`;
-        const width=measure.measureText(ch).width;
-        const advance=Math.max(width*1.12,fontAt(clamp(t))*.32);
-        items.push({wi,ci,advance,letter:letters[items.length].e});
-        total+=advance;
-      });
-      if(wi<WORDS.length-1){
-        const gap=fontAt(clamp(total/pathLength))*.80;
-        items.push({gap:true,advance:gap});total+=gap;
-      }
+      [...word].forEach(ch=>items.push({wi,ch,e:letters[glyphIndex++].e}));
+      if(wi<WORDS.length-1)items.push({gap:true});
     });
-    // Re-measure with fonts at final positions for accurate varying sizes.
-    for(let pass=0;pass<3;pass++){
-      let cursor=0;
-      items.forEach(item=>{
-        if(item.gap){item.advance=fontAt(clamp(cursor/Math.max(total,1)))*.80;}
-        else{
-          const t=clamp((cursor+item.advance/2)/Math.max(total,1));
-          measure.font=`${fontAt(t)}px Anton, Impact, sans-serif`;
-          item.advance=Math.max(measure.measureText(WORDS[item.wi][item.ci]).width*1.12,fontAt(t)*.32);
-        }
-        cursor+=item.advance;
+    const baseSize=mobile?38:76;
+    const minSize=mobile?11:17;
+    const fontAt=t=>minSize+(baseSize-minSize)*Math.pow(1-t,1.35);
+    const pitchAt=t=>radiusAt(t)-radiusAt(Math.min(1,t+1/turns));
+    // Solve advance positions iteratively because the type scales with depth.
+    let positions=[],total=0;
+    for(let pass=0;pass<7;pass++){
+      let cursor=0;positions=[];
+      items.forEach((it,i)=>{
+        const t=pass===0?i/items.length:clamp((cursor/Math.max(total,1)));
+        const font=Math.min(fontAt(t),Math.max(9,pitchAt(t)*.65));
+        measure.font=`${font}px Anton, Impact, sans-serif`;
+        const advance=it.gap?font*.68:Math.max(measure.measureText(it.ch).width*1.13,font*.28);
+        positions.push({start:cursor,advance,font});cursor+=advance;
       });
       total=cursor;
     }
-    const fit=Math.min(1,pathLength/Math.max(total,1)*.91);
-    let cursor=(pathLength-total*fit)/2;
+    // If the sentence is longer than the path, reduce type sizes AND recompute
+    // advances. Do not just squeeze character positions (that caused overlap).
+    const globalScale=Math.min(1,length/Math.max(total,1)*.94);
+    const occupied=total*globalScale;
+    let cursor=Math.max(0,(length-occupied)*.18);
     const visibleFloat=p*WORDS.length;
-    items.forEach(item=>{
-      const center=cursor+item.advance*fit/2;
-      cursor+=item.advance*fit;
-      if(item.gap)return;
-      // Arc-length lookup maps each glyph to its own non-overlapping position.
+    items.forEach((it,i)=>{
+      const advance=positions[i].advance*globalScale;
+      const center=cursor+advance/2;cursor+=advance;
+      if(it.gap)return;
       let lo=0,hi=samples;
       while(lo<hi){const mid=(lo+hi)>>1;if(arc[mid]<center)lo=mid+1;else hi=mid;}
       const t=clamp(lo/samples),theta=startAngle+t*sweep,r=radiusAt(t);
-      // The pitch between adjacent turns shrinks as the spiral recedes.
-      // Constrain the glyph height to that pitch, avoiding collisions between rings.
-      const nextTurnRadius=radiusAt(Math.min(1,t+1/turns));
-      const pitch=Math.max(0,r-nextTurnRadius);
-      const font=Math.min(fontAt(t)*fit,pitch*.78);
-      const reveal=ease(clamp(visibleFloat-item.wi,0,1));
-      // Words spray into their final position, rather than spawning in place.
+      const font=Math.min(positions[i].font*globalScale,pitchAt(t)*.65);
+      const reveal=ease(clamp(visibleFloat-it.wi,0,1));
       const fly=(1-reveal)*Math.min(90,small*.13);
       const x=Math.cos(theta)*(r+fly),y=Math.sin(theta)*(r+fly);
-      const tangent=theta+Math.PI/2;
-      const e=item.letter;
+      const tangent=Math.atan2(r*Math.cos(theta)+r*Math.log(ratio)/sweep*Math.sin(theta),
+                               -r*Math.sin(theta)+r*Math.log(ratio)/sweep*Math.cos(theta));
+      const e=it.e;
       e.style.fontSize=font+'px';
       e.style.opacity=String(reveal);
       e.style.filter=`blur(${(1-reveal)*4}px)`;
