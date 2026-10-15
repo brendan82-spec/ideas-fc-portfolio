@@ -81,7 +81,7 @@ function render(t){const dt=Math.min(1.8,(t-last)/16.67);last=t;ctx.clearRect(0,
 img.onload=()=>{sampleMask();spawnBalls(false);resizePhysics()};addEventListener('resize',resizePhysics,{passive:true});requestAnimationFrame(render);
 // Desktop wheel/scroll maps smoothly to the same states.
 addEventListener('wheel',e=>{if(caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;if(phase==='INTRO'&&e.deltaY>0){e.preventDefault();if(typeof advanceIntroCopy==='function'){advanceIntroCopy(e.deltaY)}else{startLogoTurn()}return}if(phase==='ROTATING'){e.preventDefault();return}if((phase==='BALLS'||phase==='TRANSITION')&&stage.style.visibility!=='hidden'){e.preventDefault();phase='TRANSITION';transition=clamp(transition+e.deltaY/900);if(transition>=.995){phase='WORK';transition=1;stage.style.visibility='hidden'}if(transition<=.001){phase='BALLS';transition=0}}},{passive:false});
-let sy=0,lastY=0,gesture='';stage.addEventListener('touchstart',e=>{if(e.touches.length!==1)return;sy=lastY=e.touches[0].clientY;gesture='';touching=true},{passive:true});stage.addEventListener('touchmove',e=>{if(e.touches.length!==1)return;const y=e.touches[0].clientY,dy=y-lastY,total=y-sy;if(!gesture&&Math.abs(total)>14)gesture=total<0?'up':'down';if(phase==='INTRO'){if(total<-8){e.preventDefault();if(typeof advanceIntroCopy==='function'){advanceIntroCopy(Math.max(0,-dy)*.75)}else if(total<-38){startLogoTurn()}sy=y;lastY=y}}else if(phase==='ROTATING'){e.preventDefault()}else if(phase==='BALLS'||phase==='TRANSITION'){e.preventDefault();phase='TRANSITION';transition=clamp(transition-dy/(H*1.35));if(transition<=.001)phase='BALLS';lastY=y}},{passive:false});stage.addEventListener('touchend',()=>{touching=false;if(transition>.88){transition=1;phase='WORK';stage.style.visibility='hidden'}else if(transition<.08){transition=0;phase='BALLS'}},{passive:true});
+let sy=0,lastY=0,gesture='';stage.addEventListener('touchstart',e=>{if(e.touches.length!==1)return;sy=lastY=e.touches[0].clientY;gesture='';touching=true},{passive:true});stage.addEventListener('touchmove',e=>{if(e.touches.length!==1)return;const y=e.touches[0].clientY,dy=y-lastY,total=y-sy;if(!gesture&&Math.abs(total)>14)gesture=total<0?'up':'down';if(phase==='INTRO'){if(total<-8){e.preventDefault();if(typeof advanceIntroCopy==='function'){advanceIntroCopy(Math.max(0,-dy)*2.2)}else if(total<-38){startLogoTurn()}sy=y}}else if(phase==='ROTATING'){e.preventDefault()}else if(phase==='BALLS'||phase==='TRANSITION'){e.preventDefault();phase='TRANSITION';transition=clamp(transition-dy/(H*1.35));if(transition<=.001)phase='BALLS';lastY=y}},{passive:false});stage.addEventListener('touchend',()=>{touching=false;if(transition>.88){transition=1;phase='WORK';stage.style.visibility='hidden'}else if(transition<.08){transition=0;phase='BALLS'}},{passive:true});
 // From the top of Work, a deliberate downward swipe returns to the transition/physics stage.
 let gy=0;gallery.addEventListener('touchstart',e=>{if(gallery.scrollTop<=1&&e.touches.length===1)gy=e.touches[0].clientY;else gy=0},{passive:true});gallery.addEventListener('touchmove',e=>{if(!gy||gallery.scrollTop>1)return;const d=e.touches[0].clientY-gy;if(d>18){e.preventDefault();stage.style.visibility='visible';phase='TRANSITION';transition=clamp(1-d/(H*.8));if(transition<.98)gallery.scrollTop=0}},{passive:false});gallery.addEventListener('touchend',()=>{gy=0;if(transition<.9){phase=transition<.05?'BALLS':'TRANSITION'}else{transition=1;phase='WORK';stage.style.visibility='hidden'}},{passive:true});gallery.addEventListener('wheel',e=>{if(gallery.scrollTop<=1&&e.deltaY<0){e.preventDefault();stage.style.visibility='visible';phase='TRANSITION';transition=clamp(transition+e.deltaY/900)}},{passive:false});
 
@@ -156,7 +156,39 @@ html,body,a,button,[role="button"],.menu-row,.project-row,.case-close,.menu-clos
 body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;visibility:hidden!important}
 }
 </style>
-<!-- mobile touch input handled by base controller and spiral capture controller -->
+<script id="v22-mobile-hard-fix-script">
+(()=>{
+ const g=document.getElementById('gallery'),st=document.getElementById('stage');
+ if(!g||!st)return;
+ let start=0,last=0,owner='',handled=false;
+ document.addEventListener('touchstart',e=>{
+   if(e.touches.length!==1||caseEl.classList.contains('open')||menuPanel.classList.contains('open')){owner='';return}
+   start=last=e.touches[0].clientY;handled=false;
+   owner=(phase==='INTRO'||phase==='ROTATING'||phase==='BALLS'||phase==='TRANSITION')?'intro':(phase==='WORK'&&g.scrollTop<=1?'worktop':'');
+ },{capture:true,passive:true});
+ document.addEventListener('touchmove',e=>{
+   if(!owner||e.touches.length!==1)return;
+   const y=e.touches[0].clientY,dy=y-last,total=y-start;last=y;
+   if(owner==='intro'){
+     if(phase==='INTRO'&&dy<0){e.preventDefault();e.stopImmediatePropagation();window.advanceIntroCopy?.(-dy*2.7)}
+     else if(phase==='ROTATING'){e.preventDefault();e.stopImmediatePropagation()}
+     else if(phase==='BALLS'||phase==='TRANSITION'){
+       e.preventDefault();e.stopImmediatePropagation();phase='TRANSITION';transition=clamp(transition-dy/(H*.92));
+       if(transition>=.999){transition=1;phase='WORK';g.classList.add('work-docked');g.scrollTop=0;st.style.visibility='hidden'}
+       else if(transition<=.001){transition=0;phase='BALLS'}
+     }
+   }else if(owner==='worktop'&&total>10){
+     e.preventDefault();e.stopImmediatePropagation();handled=true;g.classList.remove('work-docked');g.scrollTop=0;
+     st.style.visibility='visible';phase='TRANSITION';transition=clamp(1-total/(H*.92));
+   }
+ },{capture:true,passive:false});
+ document.addEventListener('touchend',()=>{
+   if(owner==='intro'&&phase==='TRANSITION'&&transition>.985){transition=1;phase='WORK';g.classList.add('work-docked');st.style.visibility='hidden'}
+   if(owner==='worktop'&&handled){if(transition>.94){transition=1;phase='WORK';g.classList.add('work-docked');st.style.visibility='hidden'}else if(transition<.02){transition=0;phase='BALLS'}}
+   owner='';handled=false;
+ },{capture:true,passive:true});
+})();
+</script>
 
 <style id="v23-agreed">
 @media(hover:hover) and (pointer:fine){html,body,body *{cursor:none!important}#ideasCursor{position:fixed;left:0;top:0;width:16px;height:16px;z-index:99999;pointer-events:none;will-change:transform}}
@@ -349,113 +381,78 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 .intro-copy-sequence{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden;color:#050505;text-transform:uppercase}
 .spiral-letter{position:absolute;left:50%;top:50%;font-family:'Anton','Arial Narrow',Impact,sans-serif;font-weight:400;line-height:1;letter-spacing:0;white-space:pre;transform-origin:50% 50%;will-change:transform,opacity,filter;opacity:0}
 @media(prefers-reduced-motion:reduce){.spiral-letter{filter:none!important;transition:none!important}}
+@media(max-width:700px){.hero-logo{width:min(44vw,30dvh)!important}}
 </style>
 <script id="v25-intro-copy-selected-work-js">
 (()=>{
-  const stage=document.getElementById('stage'),logo=document.getElementById('heroLogo'),cue=document.getElementById('cue');
-  if(!stage||!logo)return;
-  const WORDS=['CREATE','IDEAS','SO','UNEXPECTED','AND','POWERFUL','THEY','DON’T','JUST','CATCH','THE','EYE','BUT','HIJACK','THE','BRAIN','AND','EXPLODE','IN','THE','MIND'];
-  const copy=document.createElement('div');copy.className='intro-copy-sequence';copy.setAttribute('aria-hidden','true');stage.append(copy);
-  const glyphs=[];
-  WORDS.forEach((word,wi)=>[...word].forEach(ch=>{const el=document.createElement('span');el.className='spiral-letter';el.textContent=ch;copy.append(el);glyphs.push({el,ch,wi})}));
-  const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)),ease=t=>1-Math.pow(1-clamp(t),3);
-  const measure=document.createElement('canvas').getContext('2d');
-  window.introCopyProgress=0;
-  function layout(){
-    const p=clamp(window.introCopyProgress),r=stage.getBoundingClientRect(),W=r.width,H=r.height,mobile=W<701;
-    // A single exponentially contracting curve. Radius is a function of angle,
-    // not of word number. Its pitch shrinks toward the logo (true perspective).
-    const lr=logo.getBoundingClientRect();
-    const logoRadius=Math.max(lr.width,lr.height)*.5;
-    const outer=Math.min(W*(mobile?.485:.475),H*(mobile?.47:.48));
-    const inner=Math.min(outer*.69,logoRadius+(mobile?17:26));
-    const turns=mobile?1.43:2.04;
-    const sweep=turns*2*Math.PI,logRatio=Math.log(inner/outer);
-    const angle0=-Math.PI*.51;
-    const count=2400,arc=new Float64Array(count+1),radii=new Float64Array(count+1);
-    function radius(t){return outer*Math.exp(logRatio*t)}
-    radii[0]=outer;
-    for(let i=1;i<=count;i++){
-      const t=i/count,rr=radius(t),prev=radii[i-1];radii[i]=rr;
-      const ds=Math.hypot((rr+prev)*.5*sweep,rr-prev*count)/count;
-      arc[i]=arc[i-1]+ds;
-    }
-    const length=arc[count];
-    function sampleAt(s){
-      let lo=0,hi=count;while(lo<hi){const mid=(lo+hi)>>1;if(arc[mid]<s)lo=mid+1;else hi=mid}
-      const i=Math.min(count,Math.max(1,lo)),f=clamp((s-arc[i-1])/Math.max(arc[i]-arc[i-1],.00001));
-      return (i-1+f)/count;
-    }
-    function fontAt(t){
-      // Pitch is the distance to the next turn of the SAME spiral.
-      const pitch=radius(t)*(1-Math.exp(logRatio/turns));
-      return Math.min(mobile?40:112,Math.max(mobile?12:19,pitch*(mobile?.68:.72)));
-    }
-    // Calculate the glyph widths at their real positions along the curve.
-    // This ensures words never share the same angular coordinate.
-    const entries=[];
-    glyphs.forEach((g,i)=>{entries.push({g});if(i<glyphs.length-1&&glyphs[i+1].wi!==g.wi)entries.push({space:true})});
-    let fit=1,positions=[];
-    for(let pass=0;pass<6;pass++){
-      let s=0;positions=[];
-      for(const item of entries){
-        const t=sampleAt(clamp(s,0,length)),font=fontAt(t)*fit;
-        let width;
-        if(item.space)width=font*.46;
-        else{measure.font=`${font}px Anton, Impact, sans-serif`;width=Math.max(font*.19,measure.measureText(item.g.ch).width)*1.075}
-        positions.push({item,s:s+width/2,width});s+=width;
-      }
-      const target=length*.97;
-      fit*=target/Math.max(s,1);
-    }
-    // Recompute using the final fitted font and centre the text in the available arc.
-    let total=0;positions=[];
-    for(const item of entries){
-      const t=sampleAt(clamp(total,0,length)),font=fontAt(t)*fit;
-      let width;if(item.space)width=font*.46;
-      else{measure.font=`${font}px Anton, Impact, sans-serif`;width=Math.max(font*.19,measure.measureText(item.g.ch).width)*1.075}
-      positions.push({item,s:total+width/2,width});total+=width;
-    }
-    const offset=Math.max(0,(length-total)/2),visible=p*WORDS.length;
-    for(const pos of positions){
-      if(pos.item.space)continue;
-      const {el,wi}=pos.item.g;
-      const t=sampleAt(clamp(offset+pos.s,0,length)),theta=angle0+t*sweep,rr=radius(t),font=fontAt(t)*fit;
-      const reveal=ease(clamp(visible-wi)),fly=(1-reveal)*Math.min(mobile?35:90,W*.1);
-      const x=Math.cos(theta)*(rr+fly),y=Math.sin(theta)*(rr+fly);
-      const drdtheta=rr*logRatio/sweep;
-      const tangent=theta+Math.atan2(rr,-drdtheta);
-      el.style.fontSize=font+'px';el.style.opacity=String(reveal);
-      el.style.filter=`blur(${(1-reveal)*3}px)`;
-      el.style.transform=`translate(-50%,-50%) translate(${x}px,${y}px) rotate(${tangent}rad) scale(${.8+.2*reveal})`;
-    }
-    copy.style.opacity=phase==='INTRO'?'1':'0';
-  }
-  let finishTimer=0;
-  window.advanceIntroCopy=function(delta){
-    if(phase!=='INTRO')return;
-    window.introCopyProgress=clamp(window.introCopyProgress+Math.min(100,Math.max(0,delta))/(WORDS.length*260));
-    if(cue)cue.style.opacity=window.introCopyProgress>.015?'0':'1';
-    layout();
-    if(window.introCopyProgress>=.999&&!finishTimer){finishTimer=setTimeout(()=>{finishTimer=0;if(phase==='INTRO'){copy.style.opacity='0';startLogoTurn()}},260)}
-  };
-  // Capture swipes before legacy stage listeners, preventing duplicate handling.
-  let lastTouch=null;
-  document.addEventListener('touchstart',e=>{
-    if(e.touches.length===1&&phase==='INTRO'&&!caseEl.classList.contains('open')&&!menuPanel.classList.contains('open'))lastTouch=e.touches[0].clientY;
-    else lastTouch=null;
-  },{capture:true,passive:true});
-  document.addEventListener('touchmove',e=>{
-    if(lastTouch===null||phase!=='INTRO'||e.touches.length!==1)return;
-    const y=e.touches[0].clientY,dy=lastTouch-y;lastTouch=y;
-    if(dy>0){e.preventDefault();e.stopImmediatePropagation();window.advanceIntroCopy(dy*.75)}
-  },{capture:true,passive:false});
-  document.addEventListener('touchend',()=>{lastTouch=null},{capture:true,passive:true});
-  addEventListener('resize',layout,{passive:true});
-  if(document.fonts?.ready)document.fonts.ready.then(layout);
-  layout();let prev=phase;
-  (function watch(){if(prev!=='INTRO'&&phase==='INTRO'){window.introCopyProgress=0;copy.style.opacity='1';layout()}
-    if(phase!=='INTRO')copy.style.opacity='0';prev=phase;requestAnimationFrame(watch)})();
+ const stage=document.getElementById('stage'),logo=document.getElementById('heroLogo'),cue=document.getElementById('cue');
+ if(!stage||!logo)return;
+ const WORDS=['CREATE','IDEAS','SO','UNEXPECTED','AND','POWERFUL','THEY','DON’T','JUST','CATCH','THE','EYE','BUT','HIJACK','THE','BRAIN','AND','EXPLODE','IN','THE','MIND'];
+ const copy=document.createElement('div');copy.className='intro-copy-sequence';copy.setAttribute('aria-hidden','true');stage.appendChild(copy);
+ const chars=[];WORDS.forEach((word,wi)=>[...word].forEach((ch,ci)=>{const el=document.createElement('span');el.className='spiral-letter';el.textContent=ch;copy.appendChild(el);chars.push({el,wi,ci,ch})}));
+ const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+ const ease=v=>1-Math.pow(1-clamp(v),3);
+ const context=document.createElement('canvas').getContext('2d');
+ window.introCopyProgress=0;
+ function layout(){
+   const sr=stage.getBoundingClientRect(),W=sr.width,H=sr.height,mobile=W<=700;
+   if(!W||!H)return;
+   // Genuine inward-contracting spiral, with no repeated per-word angles.
+   // The outermost sweep remains screen-sized; the inner end clears the logo.
+   const logoRadius=Math.min(logo.offsetWidth,logo.offsetHeight||logo.offsetWidth)/2;
+   const outer=mobile?Math.min(W*.475,H*.40):Math.min(W*.46,H*.465);
+   const inner=Math.min(outer*.70,logoRadius+(mobile?13:23));
+   const turns=mobile?1.72:2.10,sweep=turns*Math.PI*2;
+   const theta0=-Math.PI*.56;
+   const exponent=1.48; // ring pitch contracts continuously toward the centre
+   const radius=t=>inner+(outer-inner)*Math.pow(1-t,exponent);
+   const steps=1800,arc=new Float64Array(steps+1);let px=outer*Math.cos(theta0),py=outer*Math.sin(theta0);
+   for(let i=1;i<=steps;i++){
+     const t=i/steps,theta=theta0+t*sweep,r=radius(t),x=r*Math.cos(theta),y=r*Math.sin(theta);
+     arc[i]=arc[i-1]+Math.hypot(x-px,y-py);px=x;py=y;
+   }
+   const len=arc[steps];
+   const fontAt=t=>mobile?(12+25*Math.pow(1-t,1.18)):(19+91*Math.pow(1-t,1.24));
+   const advanceAt=(ch,t)=>{const fs=fontAt(t);context.font=`${fs}px Anton, Impact, sans-serif`;return Math.max(fs*.28,context.measureText(ch).width*1.09)};
+   // Solve positions along *one* path by glyph width, rather than distributing words by index.
+   const segments=[];let guess=0;
+   for(const [wi,word] of WORDS.entries()){
+     for(const ch of word){const t=clamp(guess/len);const w=advanceAt(ch,t);segments.push({wi,ch,advance:w});guess+=w}
+     if(wi<WORDS.length-1){const w=fontAt(clamp(guess/len))*.68;segments.push({gap:true,advance:w});guess+=w}
+   }
+   for(let pass=0;pass<5;pass++){
+     let at=0;for(const item of segments){const t=clamp((at+item.advance*.5)/Math.max(guess,1));item.advance=item.gap?fontAt(t)*.68:advanceAt(item.ch,t);at+=item.advance}guess=at;
+   }
+   const fit=Math.min(1,len/Math.max(guess,1)*.965);
+   let cursor=Math.max(0,(len-guess*fit)*.12),charIndex=0;
+   const visible=window.introCopyProgress*WORDS.length;
+   for(const item of segments){
+     const middle=cursor+item.advance*fit*.5;cursor+=item.advance*fit;
+     if(item.gap)continue;
+     let lo=0,hi=steps;while(lo<hi){const mid=(lo+hi)>>1;if(arc[mid]<middle)lo=mid+1;else hi=mid}
+     const t=clamp(lo/steps),theta=theta0+t*sweep,r=radius(t);
+     const tangent=theta+Math.PI/2;
+     const el=chars[charIndex++].el;
+     const reveal=ease(visible-item.wi);
+     const spray=(1-reveal)*(mobile?30:65);
+     el.style.fontSize=(fontAt(t)*fit)+'px';
+     el.style.opacity=String(reveal);
+     el.style.filter=`blur(${(1-reveal)*3}px)`;
+     el.style.transform=`translate(-50%,-50%) translate(${Math.cos(theta)*(r+spray)}px,${Math.sin(theta)*(r+spray)}px) rotate(${tangent}rad) scale(${.82+.18*reveal})`;
+   }
+   copy.style.opacity=phase==='INTRO'?'1':'0';
+ }
+ let ending=false;
+ window.advanceIntroCopy=function(delta){
+   if(phase!=='INTRO'||ending)return;
+   window.introCopyProgress=clamp(window.introCopyProgress+Math.max(0,delta)/(WORDS.length*75));
+   if(cue)cue.style.opacity=window.introCopyProgress>.015?'0':'1';
+   layout();
+   if(window.introCopyProgress>=.999){ending=true;setTimeout(()=>{if(phase==='INTRO'){copy.style.opacity='0';startLogoTurn()}ending=false},260)}
+ };
+ addEventListener('resize',layout,{passive:true});if(document.fonts?.ready)document.fonts.ready.then(layout);layout();
+ let previous=phase;
+ (function watch(){if(previous!=='INTRO'&&phase==='INTRO'){window.introCopyProgress=0;ending=false;if(cue)cue.style.opacity='1';layout()}if(phase!=='INTRO')copy.style.opacity='0';previous=phase;requestAnimationFrame(watch)})();
 })();
 </script>
 
