@@ -362,37 +362,79 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
   window.introCopyProgress=0;
   const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
   const ease=t=>1-Math.pow(1-clamp(t),3);
+  // Measure the entire sentence as one continuous path: word spacing and
+  // character advances are based on actual Anton glyph widths, not word index.
+  const measure=document.createElement('canvas').getContext('2d');
   function layout(){
     const p=clamp(window.introCopyProgress),sr=stage.getBoundingClientRect(),lr=logo.getBoundingClientRect();
     const W=sr.width,H=sr.height,small=Math.min(W,H),mobile=W<701;
-    /* MIND finishes close to the logo; CREATE starts inside the visible frame, not off-screen. */
     const inner=Math.max(lr.width,lr.height)/2+(mobile?22:30);
-    const outer=Math.max(inner+24, Math.min(W*.39,H*.40,mobile?small*.40:small*.43));
-    const turns=mobile?2.05:2.18;
+    const outer=Math.max(inner+24,Math.min(W*.39,H*.40,mobile?small*.40:small*.43));
+    const turns=mobile?2.05:2.18, sweep=turns*Math.PI*2;
     const startAngle=-Math.PI*.42;
+    const fontAt=t=>(mobile?15+24*(1-t):24+53*(1-t));
+    // Approximate the spiral's true arc length, including its radial slope.
+    const radialSlope=(outer-inner)/sweep;
+    const samples=480,arc=[0];
+    for(let i=1;i<=samples;i++){
+      const t=(i-.5)/samples,r=outer-(outer-inner)*t;
+      arc[i]=arc[i-1]+Math.hypot(r,radialSlope)*sweep/samples;
+    }
+    const pathLength=arc[samples];
+    // Fit all glyphs into the available path with an explicit gap after words.
+    // This prevents adjacent words from sharing the same angular position.
+    const items=[];
+    let total=0;
+    WORDS.forEach((word,wi)=>{
+      [...word].forEach((ch,ci)=>{
+        const t=total/Math.max(pathLength,1);
+        measure.font=`${fontAt(clamp(t))}px Anton, Impact, sans-serif`;
+        const width=measure.measureText(ch).width;
+        const advance=Math.max(width*.98,fontAt(clamp(t))*.26);
+        items.push({wi,ci,advance,letter:letters[items.length].e});
+        total+=advance;
+      });
+      if(wi<WORDS.length-1){
+        const gap=fontAt(clamp(total/pathLength))*.48;
+        items.push({gap:true,advance:gap});total+=gap;
+      }
+    });
+    // Re-measure with fonts at final positions for accurate varying sizes.
+    for(let pass=0;pass<3;pass++){
+      let cursor=0;
+      items.forEach(item=>{
+        if(item.gap){item.advance=fontAt(clamp(cursor/Math.max(total,1)))*.48;}
+        else{
+          const t=clamp((cursor+item.advance/2)/Math.max(total,1));
+          measure.font=`${fontAt(t)}px Anton, Impact, sans-serif`;
+          item.advance=Math.max(measure.measureText(WORDS[item.wi][item.ci]).width*.98,fontAt(t)*.26);
+        }
+        cursor+=item.advance;
+      });
+      total=cursor;
+    }
+    const fit=Math.min(1,pathLength/Math.max(total,1)*.97);
+    let cursor=(pathLength-total*fit)/2;
     const visibleFloat=p*WORDS.length;
-    letters.forEach(({e,wi,ci,n})=>{
-      const wu=wi/(WORDS.length-1);
-      /* Whole sentence is one smooth spiral, outer words large and inner words progressively smaller. */
-      const shaped=Math.pow(wu,.92);
-      const baseTheta=startAngle+shaped*turns*Math.PI*2;
-      const baseR=outer-(outer-inner)*shaped;
-      const rn=clamp((baseR-inner)/(outer-inner));
-      let font=mobile?(15+rn*24):(24+rn*53);
-      /* Each character advances along the same spiral, so words bend rather than staying straight. */
-      const charArc=(font*.58)/Math.max(baseR,1);
-      const centered=ci-(n-1)/2;
-      const theta=baseTheta+centered*charArc;
-      const radialStep=(outer-inner)/(turns*Math.PI*2);
-      const r=baseR-centered*charArc*radialStep;
-      const x=Math.cos(theta)*r,y=Math.sin(theta)*r;
+    items.forEach(item=>{
+      const center=cursor+item.advance*fit/2;
+      cursor+=item.advance*fit;
+      if(item.gap)return;
+      // Arc-length lookup maps each glyph to its own non-overlapping position.
+      let lo=0,hi=samples;
+      while(lo<hi){const mid=(lo+hi)>>1;if(arc[mid]<center)lo=mid+1;else hi=mid;}
+      const t=clamp(lo/samples),theta=startAngle+t*sweep,r=outer-(outer-inner)*t;
+      const font=fontAt(t)*fit;
+      const reveal=ease(clamp(visibleFloat-item.wi,0,1));
+      // Words spray into their final position, rather than spawning in place.
+      const fly=(1-reveal)*Math.min(90,small*.13);
+      const x=Math.cos(theta)*(r+fly),y=Math.sin(theta)*(r+fly);
       const tangent=theta+Math.PI/2;
-      const reveal=ease(clamp(visibleFloat-wi,0,1));
-      const enter=.78+.22*reveal;
+      const e=item.letter;
       e.style.fontSize=font+'px';
       e.style.opacity=String(reveal);
-      e.style.filter=`blur(${(1-reveal)*3}px)`;
-      e.style.transform=`translate(-50%,-50%) translate(${x}px,${y}px) rotate(${tangent}rad) scale(${enter})`;
+      e.style.filter=`blur(${(1-reveal)*4}px)`;
+      e.style.transform=`translate(-50%,-50%) translate(${x}px,${y}px) rotate(${tangent}rad) scale(${.85+.15*reveal})`;
     });
     copy.style.opacity=phase==='INTRO'?'1':'0';
   }
