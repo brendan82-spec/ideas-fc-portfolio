@@ -77,13 +77,12 @@ function physicsStep(dt){
   // Re-clamp after collision resolution so no ball can be left beyond the visible side walls.
   for(const b of balls){b.x=clamp(b.x,b.r,W-b.r);if(b.y+b.r>floor)b.y=floor-b.r}
 }
-function render(t){const dt=Math.min(1.8,(t-last)/16.67);last=t;ctx.clearRect(0,0,W,H);if(phase==='ROTATING'){logoTurn=Math.min(logoTurnTarget,logoTurn+8.5*dt);heroLogo.style.transform=`translate(-50%,-50%) rotate(${logoTurn}deg)`;if(logoTurn>=logoTurnTarget)releaseBalls()}physicsStep(dt);if(phase!=='INTRO'&&phase!=='ROTATING')for(const b of balls)drawBall(b);gallery.style.transform=`translateY(${(1-transition)*100}%)`;requestAnimationFrame(render)}
+function render(t){const dt=Math.min(1.8,(t-last)/16.67);last=t;ctx.clearRect(0,0,W,H);if(phase==='ROTATING'){logoTurn=Math.min(logoTurnTarget,logoTurn+8.5*dt);heroLogo.style.transform=`translate(-50%,-50%) rotate(${logoTurn}deg)`;if(logoTurn>=logoTurnTarget)releaseBalls()}physicsStep(dt);if(phase!=='INTRO'&&phase!=='ROTATING')for(const b of balls)drawBall(b);gallery.style.transform=`translateY(${(1-transition)*100}%)`;gallery.classList.toggle('work-docked',phase==='WORK'&&transition>=1);requestAnimationFrame(render)}
 img.onload=()=>{sampleMask();spawnBalls(false);resizePhysics()};addEventListener('resize',resizePhysics,{passive:true});requestAnimationFrame(render);
 // Desktop wheel/scroll maps smoothly to the same states.
-addEventListener('wheel',e=>{if(caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;if(phase==='INTRO'&&e.deltaY>0){e.preventDefault();if(typeof advanceIntroCopy==='function'){advanceIntroCopy(e.deltaY)}else{startLogoTurn()}return}if(phase==='ROTATING'){e.preventDefault();return}if((phase==='BALLS'||phase==='TRANSITION')&&stage.style.visibility!=='hidden'){e.preventDefault();phase='TRANSITION';transition=clamp(transition+e.deltaY/900);if(transition>=.995){phase='WORK';transition=1;stage.style.visibility='hidden'}if(transition<=.001){phase='BALLS';transition=0}}},{passive:false});
-let sy=0,lastY=0,gesture='';stage.addEventListener('touchstart',e=>{if(e.touches.length!==1)return;sy=lastY=e.touches[0].clientY;gesture='';touching=true},{passive:true});stage.addEventListener('touchmove',e=>{if(e.touches.length!==1)return;const y=e.touches[0].clientY,dy=y-lastY,total=y-sy;if(!gesture&&Math.abs(total)>14)gesture=total<0?'up':'down';if(phase==='INTRO'){if(total<-8){e.preventDefault();if(typeof advanceIntroCopy==='function'){advanceIntroCopy(Math.max(0,-dy)*2.2)}else if(total<-38){startLogoTurn()}sy=y}}else if(phase==='ROTATING'){e.preventDefault()}else if(phase==='BALLS'||phase==='TRANSITION'){e.preventDefault();phase='TRANSITION';transition=clamp(transition-dy/(H*1.35));if(transition<=.001)phase='BALLS';lastY=y}},{passive:false});stage.addEventListener('touchend',()=>{touching=false;if(transition>.88){transition=1;phase='WORK';stage.style.visibility='hidden'}else if(transition<.08){transition=0;phase='BALLS'}},{passive:true});
+addEventListener('wheel',e=>{if(caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;if(phase==='INTRO'&&e.deltaY>0){e.preventDefault();if(typeof advanceIntroCopy==='function'){advanceIntroCopy(e.deltaY)}else{startLogoTurn()}return}if(phase==='ROTATING'){e.preventDefault();return}if((phase==='BALLS'||phase==='TRANSITION')&&stage.style.visibility!=='hidden'){e.preventDefault();phase='TRANSITION';transition=clamp(transition+e.deltaY/900);if(transition>=1){phase='WORK';transition=1;stage.style.visibility='hidden'}if(transition<=.001){phase='BALLS';transition=0}}},{passive:false});
 // From the top of Work, a deliberate downward swipe returns to the transition/physics stage.
-let gy=0;gallery.addEventListener('touchstart',e=>{if(gallery.scrollTop<=1&&e.touches.length===1)gy=e.touches[0].clientY;else gy=0},{passive:true});gallery.addEventListener('touchmove',e=>{if(!gy||gallery.scrollTop>1)return;const d=e.touches[0].clientY-gy;if(d>18){e.preventDefault();stage.style.visibility='visible';phase='TRANSITION';transition=clamp(1-d/(H*.8));if(transition<.98)gallery.scrollTop=0}},{passive:false});gallery.addEventListener('touchend',()=>{gy=0;if(transition<.9){phase=transition<.05?'BALLS':'TRANSITION'}else{transition=1;phase='WORK';stage.style.visibility='hidden'}},{passive:true});gallery.addEventListener('wheel',e=>{if(gallery.scrollTop<=1&&e.deltaY<0){e.preventDefault();stage.style.visibility='visible';phase='TRANSITION';transition=clamp(transition+e.deltaY/900)}},{passive:false});
+gallery.addEventListener('wheel',e=>{if(gallery.scrollTop<=1&&e.deltaY<0){e.preventDefault();stage.style.visibility='visible';phase='TRANSITION';transition=clamp(transition+e.deltaY/900)}},{passive:false});
 
 </script>
 <style id="v20-selected-work-list">
@@ -156,27 +155,7 @@ html,body,a,button,[role="button"],.menu-row,.project-row,.case-close,.menu-clos
 body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;visibility:hidden!important}
 }
 </style>
-<script id="v22-mobile-hard-fix-script">
-(()=>{
- if(!matchMedia('(max-width:700px)').matches)return;
- const g=document.getElementById('gallery'),s=document.getElementById('stage'),logo=document.getElementById('heroLogo'); if(!g||!s||!logo)return;
- let sy=0,ly=0,owner='';
- const hideLogo=()=>{document.body.classList.add('mobile-after-logo');logo.style.display='none';logo.style.opacity='0';logo.style.visibility='hidden'};
- const dock=()=>{transition=1;phase='WORK';g.style.transform='translateY(0)';g.classList.add('work-docked');g.scrollTop=0;s.style.visibility='hidden';hideLogo()};
- const reconnect=()=>{g.classList.remove('work-docked');g.scrollTop=0;s.style.visibility='visible';phase='TRANSITION';transition=1;hideLogo()};
- document.addEventListener('touchstart',e=>{if(e.touches.length!==1||caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;sy=ly=e.touches[0].clientY;owner=(g.classList.contains('work-docked')&&g.scrollTop<=1)?'worktop':((phase==='INTRO'||phase==='ROTATING'||phase==='BALLS'||phase==='TRANSITION')?'stage':'')},{capture:true,passive:true});
- document.addEventListener('touchmove',e=>{if(!owner||e.touches.length!==1)return;const y=e.touches[0].clientY,total=y-sy,dy=y-ly;
-   if(owner==='worktop'&&total>8){e.preventDefault();e.stopImmediatePropagation();reconnect();transition=Math.max(0,Math.min(1,1-total/(H*.82)));g.style.transform=`translateY(${(1-transition)*100}%)`;}
-   else if(owner==='stage'){
-     if(phase==='INTRO'&&total<-8){e.preventDefault();e.stopImmediatePropagation();if(typeof advanceIntroCopy==='function'){advanceIntroCopy(Math.max(0,-dy)*2.2)}else if(total<-28){startLogoTurn()}}
-     else if(phase==='ROTATING'){e.preventDefault();e.stopImmediatePropagation()}
-     else if(phase==='BALLS'||phase==='TRANSITION'){e.preventDefault();e.stopImmediatePropagation();hideLogo();phase='TRANSITION';transition=Math.max(0,Math.min(1,transition-dy/(H*.95)));g.classList.remove('work-docked');g.scrollTop=0;g.style.transform=`translateY(${(1-transition)*100}%)`;if(transition>=.999)dock()}
-   } ly=y;
- },{capture:true,passive:false});
- document.addEventListener('touchend',()=>{if(owner==='worktop'&&!g.classList.contains('work-docked')){if(transition>.92)dock();else{phase=transition<.03?'BALLS':'TRANSITION';s.style.visibility='visible'}}else if(owner==='stage'&&phase==='TRANSITION'){if(transition>.92)dock();else if(transition<.05){transition=0;phase='BALLS';g.style.transform='translateY(100%)';s.style.visibility='visible';hideLogo()}}owner='';},{capture:true,passive:true});
- const guard=()=>{if(phase==='BALLS'||phase==='TRANSITION'||phase==='WORK')hideLogo();if(phase==='WORK'&&transition>=.999){if(!g.classList.contains('work-docked'))dock()}else if(transition<.999&&g.classList.contains('work-docked')){g.classList.remove('work-docked');g.scrollTop=0}requestAnimationFrame(guard)};requestAnimationFrame(guard);
-})();
-</script>
+
 
 <style id="v23-agreed">
 @media(hover:hover) and (pointer:fine){html,body,body *{cursor:none!important}#ideasCursor{position:fixed;left:0;top:0;width:16px;height:16px;z-index:99999;pointer-events:none;will-change:transform}}
@@ -374,7 +353,7 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 (()=>{
   const stage=document.getElementById('stage'),logo=document.getElementById('heroLogo'),cue=document.getElementById('cue');
   if(!stage||!logo)return;
-  const WORDS=['CREATE','IDEAS','SO','UNEXPECTED','AND','POWERFUL','THEY','DON’T','JUST','CATCH','THE','EYE','BUT','HIJACK','THE','BRAIN','AND','EXPLODE','IN','THE','MIND'];
+  const WORDS=['CREATE','IDEAS','SO','POWERFUL','THEY','DON’T','JUST','CATCH','THE','EYE','BUT','HIJACK','THE','BRAIN','AND','EXPLODE','IN','THE','MIND'];
   const copy=document.createElement('div');copy.className='intro-copy-sequence';copy.setAttribute('aria-hidden','true');stage.appendChild(copy);
   const letters=[];
   WORDS.forEach((word,wi)=>{
@@ -388,7 +367,7 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
     const W=sr.width,H=sr.height,small=Math.min(W,H),mobile=W<701;
     /* MIND finishes close to the logo; CREATE starts inside the visible frame, not off-screen. */
     const inner=Math.max(lr.width,lr.height)/2+(mobile?22:30);
-    const outer=Math.min(mobile?small*.62:small*.70, Math.min(W,H)*.72);
+    const outer=Math.max(inner+24, Math.min(W*.39,H*.40,mobile?small*.40:small*.43));
     const turns=mobile?2.05:2.18;
     const startAngle=-Math.PI*.42;
     const visibleFloat=p*WORDS.length;
@@ -399,7 +378,7 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
       const baseTheta=startAngle+shaped*turns*Math.PI*2;
       const baseR=outer-(outer-inner)*shaped;
       const rn=clamp((baseR-inner)/(outer-inner));
-      let font=mobile?(25+rn*45):(38+rn*92);
+      let font=mobile?(15+rn*24):(24+rn*53);
       /* Each character advances along the same spiral, so words bend rather than staying straight. */
       const charArc=(font*.58)/Math.max(baseR,1);
       const centered=ci-(n-1)/2;
@@ -447,26 +426,7 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 .gallery.work-docked{overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
 </style>
 
-<script id="v15-work-lock">
-(()=>{
- const g=document.getElementById('gallery'); if(!g) return;
- const head=g.querySelector('.gallery-head');
- let docked=false, startY=0, lastY=0;
- function dock(){ if(docked)return; docked=true; g.classList.add('work-docked'); g.scrollTop=0; }
- function undock(){ if(!docked)return; docked=false; g.classList.remove('work-docked'); g.scrollTop=0; }
- // transition===1 is the exact moment the rigid module has reached the nav.
- const watch=()=>{
-   const tr=(typeof transition==='number')?transition:0;
-   if(tr>=.999 && phase==='WORK') dock();
-   else if(tr<.999) undock();
-   requestAnimationFrame(watch);
- }; requestAnimationFrame(watch);
- // At the top of docked work, downward motion reconnects the entire module first.
- g.addEventListener('touchstart',e=>{if(docked&&g.scrollTop<=1&&e.touches.length===1){startY=lastY=e.touches[0].clientY}}, {passive:true});
- g.addEventListener('touchmove',e=>{if(!docked||g.scrollTop>1||!startY)return; const y=e.touches[0].clientY,d=y-lastY;if(d>0){e.preventDefault(); undock(); stage.style.visibility='visible'; phase='TRANSITION'; transition=clamp(1-d/(H*.9));} lastY=y;},{passive:false});
- g.addEventListener('touchend',()=>{startY=lastY=0},{passive:true});
-})();
-</script>
+
 
 <style id="v16-case-ending">
 /* V16: every case study ends in a fluorescent Impact module. */
@@ -489,16 +449,66 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 @media(max-width:900px){.case-hero-copy{left:0!important;padding:0 18px 34px!important}}
 </style>
 
-<script id="v17-lock-guard">
+
+
+<style id="v32-structural-nav-and-mobile-dock">
+/* The navigation is a permanent, independent layer. */
+:root{--nav-h:72px}
+.topbar{position:fixed!important;top:0!important;left:0!important;right:0!important;z-index:100000!important;background:#fff!important;isolation:isolate!important}
+.stage,.gallery,.case{top:var(--nav-h)!important;height:calc(100dvh - var(--nav-h))!important;bottom:auto!important;overflow:hidden!important}
+.stage{isolation:isolate!important}
+.intro-copy-sequence{position:absolute!important;inset:0!important;overflow:hidden!important;clip-path:inset(0)!important;contain:paint!important}
+.gallery:not(.work-docked){overflow:hidden!important;touch-action:none!important}
+.gallery.work-docked{overflow-y:auto!important;overflow-x:hidden!important;touch-action:pan-y!important;overscroll-behavior-y:contain!important}
+@media(max-width:900px){:root{--nav-h:76px}}
+@media(max-width:700px){.v23-mobile{padding-top:14px!important}.gallery:not(.work-docked) .v23-browser{overflow:hidden!important}}
+</style>
+<script id="v32-mobile-single-owner">
 (()=>{
- const g=document.getElementById('gallery');
- if(!g)return;
- // Guard against any earlier listener changing scrollTop while the module is still entering.
- const keepLocked=()=>{
-   const docked=g.classList.contains('work-docked');
-   if(!docked && g.scrollTop!==0) g.scrollTop=0;
-   requestAnimationFrame(keepLocked);
+ const g=document.getElementById('gallery'),st=document.getElementById('stage');
+ if(!g||!st)return;
+ let lastY=0,owner='',gestureStarted=false;
+ const mobile=()=>matchMedia('(max-width:700px)').matches;
+ const setTransition=v=>{
+   transition=clamp(v,0,1);
+   if(transition>=1){
+     transition=1;phase='WORK';g.style.transform='translateY(0%)';
+     g.classList.add('work-docked');st.style.visibility='hidden';
+   }else{
+     phase=transition<=0?'BALLS':'TRANSITION';
+     g.classList.remove('work-docked');g.scrollTop=0;
+     st.style.visibility='visible';
+     g.style.transform=`translateY(${(1-transition)*100}%)`;
+   }
  };
- requestAnimationFrame(keepLocked);
+ document.addEventListener('touchstart',e=>{
+   if(!mobile()||e.touches.length!==1||caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;
+   lastY=e.touches[0].clientY;
+   owner=(phase==='BALLS'||phase==='TRANSITION')?'transition':
+     (phase==='WORK'&&g.scrollTop<=1?'worktop':'');
+   gestureStarted=false;
+ },{capture:true,passive:true});
+ document.addEventListener('touchmove',e=>{
+   if(!mobile()||!owner||e.touches.length!==1)return;
+   const y=e.touches[0].clientY,dy=y-lastY;
+   if(owner==='worktop'&&dy<0){owner='';return;} // Normal scrolling inside docked Work.
+   if(owner==='worktop'&&dy>0){owner='transition';gestureStarted=true;}
+   if(owner==='transition'){
+     e.preventDefault();e.stopImmediatePropagation();
+     setTransition(transition-dy/Math.max(300,st.clientHeight*.95));
+     gestureStarted=true;
+   }
+   lastY=y;
+ },{capture:true,passive:false});
+ document.addEventListener('touchend',()=>{owner='';gestureStarted=false},{capture:true,passive:true});
+ // Work may scroll internally ONLY when its whole module has reached the navbar.
+ function guard(){
+   if(mobile()){
+     const docked=phase==='WORK'&&transition>=1;
+     if(docked){g.classList.add('work-docked');g.style.transform='translateY(0%)';st.style.visibility='hidden';}
+     else{g.classList.remove('work-docked');if(g.scrollTop)g.scrollTop=0;}
+   }
+   requestAnimationFrame(guard);
+ }guard();
 })();
 </script>
