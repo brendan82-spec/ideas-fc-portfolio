@@ -335,7 +335,7 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 
 
 <style id="v25-intro-copy-selected-work">
-/* V29 — word-by-word reveal; every letter follows one continuous circular spiral. */
+/* Spacing fix — wider pitch between revolutions, measured glyph spacing and word gaps. */
 @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
 .gallery-head{display:none!important}
 .v23-browser,.v23-desktop{min-height:100%!important;height:100%!important}
@@ -370,14 +370,18 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
     const W=sr.width,H=sr.height,small=Math.min(W,H),mobile=W<701;
     const inner=Math.max(lr.width,lr.height)/2+(mobile?22:30);
     const outer=Math.max(inner+24,Math.min(W*.39,H*.40,mobile?small*.40:small*.43));
-    const turns=mobile?2.05:2.18, sweep=turns*Math.PI*2;
+    const turns=mobile?1.85:2.0, sweep=turns*Math.PI*2;
     const startAngle=-Math.PI*.42;
-    const fontAt=t=>(mobile?15+24*(1-t):24+53*(1-t));
-    // Approximate the spiral's true arc length, including its radial slope.
-    const radialSlope=(outer-inner)/sweep;
+    // Perspective spiral: each revolution contracts by a fixed proportion.
+    // Both the baseline radius and type size recede together toward the logo.
+    const ratio=Math.max(.12,Math.min(.92,inner/outer));
+    const radiusAt=t=>outer*Math.pow(ratio,t);
+    const fontAt=t=>(mobile?14+25*Math.pow(1-t,1.25):18+57*Math.pow(1-t,1.25));
+    // Integrate the true length of the curved exponential path.
     const samples=480,arc=[0];
     for(let i=1;i<=samples;i++){
-      const t=(i-.5)/samples,r=outer-(outer-inner)*t;
+      const t=(i-.5)/samples,r=radiusAt(t);
+      const radialSlope=r*Math.log(ratio)/sweep;
       arc[i]=arc[i-1]+Math.hypot(r,radialSlope)*sweep/samples;
     }
     const pathLength=arc[samples];
@@ -390,12 +394,12 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
         const t=total/Math.max(pathLength,1);
         measure.font=`${fontAt(clamp(t))}px Anton, Impact, sans-serif`;
         const width=measure.measureText(ch).width;
-        const advance=Math.max(width*.98,fontAt(clamp(t))*.26);
+        const advance=Math.max(width*1.12,fontAt(clamp(t))*.32);
         items.push({wi,ci,advance,letter:letters[items.length].e});
         total+=advance;
       });
       if(wi<WORDS.length-1){
-        const gap=fontAt(clamp(total/pathLength))*.48;
+        const gap=fontAt(clamp(total/pathLength))*.80;
         items.push({gap:true,advance:gap});total+=gap;
       }
     });
@@ -403,17 +407,17 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
     for(let pass=0;pass<3;pass++){
       let cursor=0;
       items.forEach(item=>{
-        if(item.gap){item.advance=fontAt(clamp(cursor/Math.max(total,1)))*.48;}
+        if(item.gap){item.advance=fontAt(clamp(cursor/Math.max(total,1)))*.80;}
         else{
           const t=clamp((cursor+item.advance/2)/Math.max(total,1));
           measure.font=`${fontAt(t)}px Anton, Impact, sans-serif`;
-          item.advance=Math.max(measure.measureText(WORDS[item.wi][item.ci]).width*.98,fontAt(t)*.26);
+          item.advance=Math.max(measure.measureText(WORDS[item.wi][item.ci]).width*1.12,fontAt(t)*.32);
         }
         cursor+=item.advance;
       });
       total=cursor;
     }
-    const fit=Math.min(1,pathLength/Math.max(total,1)*.97);
+    const fit=Math.min(1,pathLength/Math.max(total,1)*.91);
     let cursor=(pathLength-total*fit)/2;
     const visibleFloat=p*WORDS.length;
     items.forEach(item=>{
@@ -423,8 +427,12 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
       // Arc-length lookup maps each glyph to its own non-overlapping position.
       let lo=0,hi=samples;
       while(lo<hi){const mid=(lo+hi)>>1;if(arc[mid]<center)lo=mid+1;else hi=mid;}
-      const t=clamp(lo/samples),theta=startAngle+t*sweep,r=outer-(outer-inner)*t;
-      const font=fontAt(t)*fit;
+      const t=clamp(lo/samples),theta=startAngle+t*sweep,r=radiusAt(t);
+      // The pitch between adjacent turns shrinks as the spiral recedes.
+      // Constrain the glyph height to that pitch, avoiding collisions between rings.
+      const nextTurnRadius=radiusAt(Math.min(1,t+1/turns));
+      const pitch=Math.max(0,r-nextTurnRadius);
+      const font=Math.min(fontAt(t)*fit,pitch*.78);
       const reveal=ease(clamp(visibleFloat-item.wi,0,1));
       // Words spray into their final position, rather than spawning in place.
       const fly=(1-reveal)*Math.min(90,small*.13);
@@ -506,12 +514,13 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 @media(max-width:700px){.v23-mobile{padding-top:14px!important}.gallery:not(.work-docked) .v23-browser{overflow:hidden!important}}
 </style>
 <script id="v32-mobile-single-owner">
+/* One touch controller owns the intro, ball transition and docking on mobile. */
 (()=>{
  const g=document.getElementById('gallery'),st=document.getElementById('stage');
  if(!g||!st)return;
- let lastY=0,owner='',gestureStarted=false;
  const mobile=()=>matchMedia('(max-width:700px)').matches;
- const setTransition=v=>{
+ let lastY=0,owner='';
+ function setTransition(v){
    transition=clamp(v,0,1);
    if(transition>=1){
      transition=1;phase='WORK';g.style.transform='translateY(0%)';
@@ -522,28 +531,32 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
      st.style.visibility='visible';
      g.style.transform=`translateY(${(1-transition)*100}%)`;
    }
- };
+ }
  document.addEventListener('touchstart',e=>{
    if(!mobile()||e.touches.length!==1||caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;
    lastY=e.touches[0].clientY;
-   owner=(phase==='BALLS'||phase==='TRANSITION')?'transition':
+   owner=phase==='INTRO'?'intro':phase==='ROTATING'?'rotating':
+     (phase==='BALLS'||phase==='TRANSITION')?'transition':
      (phase==='WORK'&&g.scrollTop<=1?'worktop':'');
-   gestureStarted=false;
  },{capture:true,passive:true});
  document.addEventListener('touchmove',e=>{
    if(!mobile()||!owner||e.touches.length!==1)return;
    const y=e.touches[0].clientY,dy=y-lastY;
-   if(owner==='worktop'&&dy<0){owner='';return;} // Normal scrolling inside docked Work.
-   if(owner==='worktop'&&dy>0){owner='transition';gestureStarted=true;}
-   if(owner==='transition'){
+   if(owner==='worktop'&&dy<0){owner='';return;} // Work scrolls normally after docking.
+   if(owner==='worktop'&&dy>0){owner='transition';}
+   if(owner==='intro'){
+     e.preventDefault();e.stopImmediatePropagation();
+     if(dy<0&&typeof window.advanceIntroCopy==='function')window.advanceIntroCopy(-dy*1.2);
+   }else if(owner==='rotating'){
+     e.preventDefault();e.stopImmediatePropagation();
+   }else if(owner==='transition'){
      e.preventDefault();e.stopImmediatePropagation();
      setTransition(transition-dy/Math.max(300,st.clientHeight*.95));
-     gestureStarted=true;
    }
    lastY=y;
  },{capture:true,passive:false});
- document.addEventListener('touchend',()=>{owner='';gestureStarted=false},{capture:true,passive:true});
- // Work may scroll internally ONLY when its whole module has reached the navbar.
+ document.addEventListener('touchend',()=>{owner='';},{capture:true,passive:true});
+ document.addEventListener('touchcancel',()=>{owner='';},{capture:true,passive:true});
  function guard(){
    if(mobile()){
      const docked=phase==='WORK'&&transition>=1;
