@@ -502,57 +502,43 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 @media(max-width:900px){:root{--nav-h:76px}}
 @media(max-width:700px){.v23-mobile{padding-top:14px!important}.gallery:not(.work-docked) .v23-browser{overflow:hidden!important}}
 </style>
-<script id="v32-mobile-single-owner">
-/* One touch controller owns the intro, ball transition and docking on mobile. */
+
+
+<script id="v33-scroll-recovery">
 (()=>{
  const g=document.getElementById('gallery'),st=document.getElementById('stage');
  if(!g||!st)return;
- const mobile=()=>matchMedia('(max-width:700px)').matches;
- let lastY=0,owner='';
- function setTransition(v){
+ const mobile=()=>innerWidth<=700;
+ const setDock=(v)=>{
    transition=clamp(v,0,1);
-   if(transition>=1){
-     transition=1;phase='WORK';g.style.transform='translateY(0%)';
-     g.classList.add('work-docked');st.style.visibility='hidden';
-   }else{
-     phase=transition<=0?'BALLS':'TRANSITION';
-     g.classList.remove('work-docked');g.scrollTop=0;
-     st.style.visibility='visible';
-     g.style.transform=`translateY(${(1-transition)*100}%)`;
-   }
- }
- document.addEventListener('touchstart',e=>{
-   if(!mobile()||e.touches.length!==1||caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;
-   lastY=e.touches[0].clientY;
-   owner=phase==='INTRO'?'intro':phase==='ROTATING'?'rotating':
-     (phase==='BALLS'||phase==='TRANSITION')?'transition':
-     (phase==='WORK'&&g.scrollTop<=1?'worktop':'');
- },{capture:true,passive:true});
- document.addEventListener('touchmove',e=>{
-   if(!mobile()||!owner||e.touches.length!==1)return;
-   const y=e.touches[0].clientY,dy=y-lastY;
-   if(owner==='worktop'&&dy<0){owner='';return;} // Work scrolls normally after docking.
-   if(owner==='worktop'&&dy>0){owner='transition';}
-   if(owner==='intro'){
-     e.preventDefault();e.stopImmediatePropagation();
-     if(dy<0&&typeof window.advanceIntroCopy==='function')window.advanceIntroCopy(-dy*1.2);
-   }else if(owner==='rotating'){
-     e.preventDefault();e.stopImmediatePropagation();
-   }else if(owner==='transition'){
-     e.preventDefault();e.stopImmediatePropagation();
-     setTransition(transition-dy/Math.max(300,st.clientHeight*.95));
-   }
-   lastY=y;
+   if(transition>=.999){transition=1;phase='WORK';g.classList.add('work-docked');st.style.visibility='hidden';}
+   else {phase=transition<=.001?'BALLS':'TRANSITION';g.classList.remove('work-docked');g.scrollTop=0;st.style.visibility='visible';}
+   g.style.transform=`translateY(${(1-transition)*100}%)`;
+ };
+ window.addEventListener('wheel',e=>{
+   if(mobile()||caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;
+   if(phase==='WORK' && (e.deltaY>=0 || g.scrollTop>1))return;
+   e.preventDefault();e.stopImmediatePropagation();
+   if(phase==='INTRO'){if(e.deltaY>0)window.advanceIntroCopy?.(e.deltaY);return;}
+   if(phase==='ROTATING')return;
+   setDock(transition+e.deltaY/900);
  },{capture:true,passive:false});
- document.addEventListener('touchend',()=>{owner='';},{capture:true,passive:true});
- document.addEventListener('touchcancel',()=>{owner='';},{capture:true,passive:true});
- function guard(){
-   if(mobile()){
-     const docked=phase==='WORK'&&transition>=1;
-     if(docked){g.classList.add('work-docked');g.style.transform='translateY(0%)';st.style.visibility='hidden';}
-     else{g.classList.remove('work-docked');if(g.scrollTop)g.scrollTop=0;}
-   }
-   requestAnimationFrame(guard);
- }guard();
+ // Allow touch scrolling to reach the stage, including when its canvas captures hit tests.
+ let y=0,active=false;
+ window.addEventListener('touchstart',e=>{
+   if(!mobile()||e.touches.length!==1||caseEl.classList.contains('open')||menuPanel.classList.contains('open'))return;
+   y=e.touches[0].clientY;active=true;
+ },{capture:true,passive:true});
+ window.addEventListener('touchmove',e=>{
+   if(!mobile()||!active||e.touches.length!==1)return;
+   const next=e.touches[0].clientY,delta=y-next;y=next;
+   if(phase==='WORK' && (delta>=0 || g.scrollTop>1))return;
+   e.preventDefault();e.stopImmediatePropagation();
+   if(phase==='INTRO'){if(delta>0)window.advanceIntroCopy?.(delta*1.4);return;}
+   if(phase==='ROTATING')return;
+   setDock(transition+delta/Math.max(320,st.clientHeight*.9));
+ },{capture:true,passive:false});
+ window.addEventListener('touchend',()=>{active=false;},{capture:true,passive:true});
+ window.addEventListener('touchcancel',()=>{active=false;},{capture:true,passive:true});
 })();
 </script>
