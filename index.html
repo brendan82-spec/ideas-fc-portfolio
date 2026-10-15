@@ -421,13 +421,13 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
       if(pos.item.space)continue;
       const {el,wi}=pos.item.g;
       const t=sampleAt(clamp(offset+pos.s,0,length)),theta=angle0+t*sweep,rr=radius(t),font=fontAt(t)*fit;
-      const reveal=ease(clamp((visible-wi)*3));
-      const x=Math.cos(theta)*rr,y=Math.sin(theta)*rr;
+      const reveal=ease(clamp(visible-wi)),fly=(1-reveal)*Math.min(mobile?35:90,W*.1);
+      const x=Math.cos(theta)*(rr+fly),y=Math.sin(theta)*(rr+fly);
       const drdtheta=rr*logRatio/sweep;
       const tangent=theta+Math.atan2(rr,-drdtheta);
       el.style.fontSize=font+'px';el.style.opacity=String(reveal);
-      el.style.filter='none';
-      el.style.transform=`translate(-50%,-50%) translate(${x}px,${y}px) rotate(${tangent}rad)`;
+      el.style.filter=`blur(${(1-reveal)*3}px)`;
+      el.style.transform=`translate(-50%,-50%) translate(${x}px,${y}px) rotate(${tangent}rad) scale(${.8+.2*reveal})`;
     }
     copy.style.opacity=phase==='INTRO'?'1':'0';
   }
@@ -437,7 +437,7 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
     window.introCopyProgress=clamp(window.introCopyProgress+Math.min(100,Math.max(0,delta))/(WORDS.length*260));
     if(cue)cue.style.opacity=window.introCopyProgress>.015?'0':'1';
     layout();
-    if(window.introCopyProgress>=.999&&!finishTimer){finishTimer=setTimeout(()=>{finishTimer=0;if(phase==='INTRO'){copy.style.opacity='0';startLogoTurn()}},1800)}
+    if(window.introCopyProgress>=.999&&!finishTimer){finishTimer=setTimeout(()=>{finishTimer=0;if(phase==='INTRO'){copy.style.opacity='0';startLogoTurn()}},260)}
   };
   // Capture swipes before legacy stage listeners, preventing duplicate handling.
   let lastTouch=null;
