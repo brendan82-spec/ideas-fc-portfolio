@@ -30,7 +30,7 @@ const menuProjects=$('#menuProjects');projects.forEach((p,i)=>{const b=document.
 // Shared, lightweight object motion. Y-axis only: no top/bottom reveal and no scale changes.
 const objectStates=[];document.querySelectorAll('.object-card').forEach((card,i)=>{const mv=card.querySelector('model-viewer'),hit=card.querySelector('.hit');if(!mv)return;const st={mv,hit,i,drag:false,moved:false,startX:0,startY:0,theta:0,target:0,lastX:0,phase:i*.73};objectStates.push(st);hit.addEventListener('pointerdown',e=>{st.startX=st.lastX=e.clientX;st.startY=e.clientY;st.drag=false;st.moved=false});hit.addEventListener('pointermove',e=>{const dx=e.clientX-st.startX,dy=e.clientY-st.startY;if(!st.drag&&Math.abs(dx)>8&&Math.abs(dx)>Math.abs(dy)*1.15){st.drag=true;hit.setPointerCapture(e.pointerId)}if(st.drag){e.preventDefault();st.moved=true;st.theta+=(e.clientX-st.lastX)*.42;st.target=st.theta;st.lastX=e.clientX}else if(matchMedia('(hover:hover)').matches){const r=card.getBoundingClientRect(),nx=(e.clientX-r.left)/r.width-.5;st.target=nx*8}});hit.addEventListener('pointerup',e=>{if(st.drag){try{hit.releasePointerCapture(e.pointerId)}catch{}st.drag=false}else if(!st.moved&&Math.hypot(e.clientX-st.startX,e.clientY-st.startY)<8)openCase(+card.dataset.i)});hit.addEventListener('pointerleave',()=>{if(!st.drag)st.target=0});card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openCase(+card.dataset.i)}})});
 function animateObjects(t){for(const st of objectStates){if(!st.drag){const idle=Math.sin(t*.00065+st.phase)*6;st.theta+=(st.target+idle-st.theta)*.035}st.mv.cameraOrbit=`${st.theta.toFixed(2)}deg 75deg auto`}requestAnimationFrame(animateObjects)}requestAnimationFrame(animateObjects);
-let galleryScroll=0;function openCase(i){const p=projects[i];galleryScroll=gallery.scrollTop;$('#caseTitle').textContent=p.title;$('#caseClient').textContent=p.client;$('#caseClientHero').textContent=p.client;$('#caseKicker').textContent=`${String(i+1).padStart(2,'0')} / Case Study / Creative Direction`;caseEl.scrollTop=0;caseEl.style.transform='';caseEl.classList.add('open');gallery.classList.add('gallery-under');menuPanel.classList.remove('open')}function finishCaseReturn(){caseEl.classList.remove('open','peeling');caseEl.style.transform='';gallery.classList.remove('gallery-under');gallery.scrollTop=galleryScroll}function closeCase(){caseEl.style.transition='transform .68s cubic-bezier(.22,.78,.18,1)';caseEl.style.transform='translateY(-105%)';setTimeout(finishCaseReturn,690)}$('#caseClose').onclick=closeCase;
+let galleryScroll=0;function openCase(i){const p=projects[i];galleryScroll=gallery.scrollTop;$('#caseTitle').textContent=p.title;$('#caseClient').textContent=p.client;$('#caseClientHero').textContent=p.client;$('#caseKicker').textContent=`${String(i+1).padStart(2,'0')} / Case Study / Creative Direction`;caseEl.scrollTop=0;caseEl.style.transform='';caseEl.classList.add('open');gallery.classList.add('gallery-under');menuPanel.classList.remove('open');if(window.renderPortfolioCase)window.renderPortfolioCase(i)}function finishCaseReturn(){caseEl.classList.remove('open','peeling');caseEl.style.transform='';gallery.classList.remove('gallery-under');gallery.scrollTop=galleryScroll}function closeCase(){caseEl.style.transition='transform .68s cubic-bezier(.22,.78,.18,1)';caseEl.style.transform='translateY(-105%)';setTimeout(finishCaseReturn,690)}$('#caseClose').onclick=closeCase;
 // V16: case studies no longer auto-peel at the bottom; CLOSE is the explicit return action.
 
 // Intro physics state machine: INTRO -> BALLS -> TRANSITION -> WORK.
@@ -220,7 +220,7 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
 (()=>{
  const g=document.getElementById('gallery'),old=document.getElementById('grid'),logo=document.getElementById('heroLogo'),st=document.getElementById('stage');
  if(!g||!old||typeof projects==='undefined')return;
- const imgs=['great-unwaste.jpg','resmed-sleep.jpg','adobe-takeover.jpg','park-ssc.jpg','massel-cricket.jpg','prep.jpg','scott-pizza.jpg','converse-cx.jpg','westpac-savings.jpg','permaguard.jpg','warrington-routes.jpg','marvel-galaxy.jpg'].map(x=>'project-images/'+x);projects.forEach((p,i)=>{if(!imgs[i])imgs[i]=p.visual||'project-images/project-'+(i+1)+'.jpg'});
+ const imgs=['great-unwaste/GU_Hero_DT_1920x950.jpeg','resmed-sleep.jpg','adobe-takeover.jpg','park-ssc.jpg','massel-cricket.jpg','prep.jpg','scott-pizza.jpg','converse-cx.jpg','westpac-savings.jpg','permaguard.jpg','warrington-routes.jpg','marvel-galaxy.jpg'].map(x=>'project-images/'+x);projects.forEach((p,i)=>{if(!imgs[i])imgs[i]=p.visual||'project-images/project-'+(i+1)+'.jpg'});
  const browser=document.createElement('div');browser.className='v23-browser';
  const desk=document.createElement('div');desk.className='v23-desktop';const bgbox=document.createElement('div'),shade=document.createElement('div'),list=document.createElement('div');shade.className='v23-shade';list.className='v23-list';const bgs=[];
  projects.forEach((p,i)=>{const bg=document.createElement('div');bg.className='v23-bg'+(i?'':' active');bg.style.backgroundImage=`url("${imgs[i]}")`;bgbox.append(bg);bgs.push(bg);
@@ -231,7 +231,7 @@ body.mobile-after-logo .hero-logo{display:none!important;opacity:0!important;vis
  projects.forEach((p,i)=>{const t=document.createElement('article');t.className='v23-tile';t.tabIndex=0;t.innerHTML=`<img src="${imgs[i]}" alt=""><div class="v23-meta"><div class="n">[${String(i+1).padStart(3,'0')}]</div><div class="t">${p.title}</div><div class="c">${p.client}</div></div>`;t.onclick=()=>openCase(i);t.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openCase(i)}};mob.append(t)});
  browser.append(desk,mob);old.replaceWith(browser);
 
- if(matchMedia('(hover:hover) and (pointer:fine)').matches){const c=document.createElement('img');c.id='ideasCursor';c.src='ideas-fc-cursor.svg';c.alt='';c.onerror=()=>{c.style.display='none';document.documentElement.classList.add('cursor-asset-missing')};document.body.append(c);let tx=innerWidth/2,ty=innerHeight/2,x=tx,y=ty,seen=false;addEventListener('pointermove',e=>{tx=e.clientX;ty=e.clientY;seen=true},{passive:true});(function tick(){x+=(tx-x)*.16;y+=(ty-y)*.16;if(seen)c.style.transform=`translate3d(${x-8}px,${y-8}px,0)`;requestAnimationFrame(tick)})()}
+ if(matchMedia('(hover:hover) and (pointer:fine)').matches){const c=document.createElement('img');c.id='ideasCursor';c.src='ideas-fc-cursor.svg';c.alt='';c.onerror=()=>{c.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" fill="%23dfff00" stroke="black" stroke-width="4"/><circle cx="22" cy="25" r="3"/><circle cx="42" cy="25" r="3"/><path d="M17 38 Q32 53 47 38" fill="none" stroke="black" stroke-width="4" stroke-linecap="round"/></svg>');};document.body.append(c);let tx=innerWidth/2,ty=innerHeight/2,x=tx,y=ty,seen=false;addEventListener('pointermove',e=>{tx=e.clientX;ty=e.clientY;seen=true},{passive:true});(function tick(){x+=(tx-x)*.16;y+=(ty-y)*.16;if(seen)c.style.transform=`translate3d(${x-8}px,${y-8}px,0)`;requestAnimationFrame(tick)})()}
 
  if(matchMedia('(max-width:700px)').matches){
    let sy=0,back=false;
@@ -465,41 +465,117 @@ function media(kind='full'){return `<div class="media-zone ${kind}" aria-label="
 function section(label,paras,cls='',num='01'){return `<section class="editorial-section ${cls} reveal"><div class="editorial-label">${num} / ${esc(label)}</div><div class="editorial-body">${paras.map(x=>`<p>${esc(x)}</p>`).join('')}</div></section>`}
 function idea(label,paras,num){const first=paras[0]||'';let statement='',support=paras;if(first.length<110){statement=first;support=paras.slice(1)}else if(first.indexOf('. ')>0&&first.indexOf('. ')<90){statement=first.slice(0,first.indexOf('. ')+1);support=[first.slice(first.indexOf('. ')+2),...paras.slice(1)]}return `<section class="editorial-section editorial-idea reveal"><div class="editorial-label">${num} / ${esc(label)}</div><div class="editorial-body">${statement?`<div class="idea-statement">${esc(statement)}</div>`:''}<div class="idea-support">${support.map(x=>`<p>${esc(x)}</p>`).join('')}</div></div></section>`}
 function results(label,paras,num){let metrics=[],other=[],awards=[];for(const p of paras){if(/^(Awards?:|CommsCon|Shorty Awards)/i.test(p)){awards.push(p);continue}const m=p.match(/^(Over |Exceeded .*? by |Nearly )?([\d,.]+\s*(?:million|\+|%|M|K)?)(.*)$/i);if(m&&m[2]&&/\d/.test(m[2])&&p.length<95){metrics.push([m[2],(m[1]||'')+m[3]]);}else other.push(p)}return `<section class="editorial-section editorial-results reveal"><div class="editorial-label">${num} / ${esc(label)}</div><div class="editorial-body">${metrics.length?`<div class="result-metrics">${metrics.map(([n,t])=>`<div class="result-metric"><strong>${esc(n)}</strong><span>${esc(t)}</span></div>`).join('')}</div>`:''}<div class="result-copy">${other.map(x=>`<p>${esc(x)}</p>`).join('')}</div>${awards.length?`<div class="editorial-awards">${awards.map(x=>`<p>${esc(x)}</p>`).join('')}</div>`:''}</div></section>`}
-const previousOpen=window.openCase;
-window.openCase=function(i){previousOpen(i);const p=projects[i],parts=content[i]||[];let blocks='';let n=0;for(const [heading,paras] of parts){n++;const num=String(n).padStart(2,'0');if(/^(The Idea)$/i.test(heading)){blocks+=idea(heading,paras,num)+media('pair')}else if(/^(The Results|The Impact)$/i.test(heading)){blocks+=results(heading,paras,num)}else{blocks+=section(heading,paras,'',num);if(n===1)blocks+=media('full');else if(n<parts.length)blocks+=media('editorial')}}if(!parts.length)blocks=media('full');const next=(i+1)%projects.length;inner.innerHTML=`<header class="case-hero"><div class="case-hero-shade"></div><div class="case-hero-copy"><h1 class="case-title">${esc(p.title)}</h1><div class="case-client-hero">${esc(p.client)}</div></div></header>${blocks}${media('full')}<button type="button" class="next-project"><span class="next-eyebrow">UP NEXT / ${String(next+1).padStart(3,'0')}</span><div class="next-title">${esc(projects[next].title)} ↗</div><span class="next-client">${esc(projects[next].client)}</span></button><button type="button" class="back-work">← BACK TO SELECTED WORK</button>`;inner.querySelector('.next-project').onclick=()=>window.openCase(next);inner.querySelector('.back-work').onclick=()=>closeCase();caseEl.scrollTop=0;const observer=new IntersectionObserver(entries=>{for(const e of entries)if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}},{root:caseEl,threshold:.06});inner.querySelectorAll('.reveal').forEach(el=>observer.observe(el));};
+window.renderPortfolioCase=function(i){const p=projects[i],parts=content[i]||[];let blocks='';let n=0;for(const [heading,paras] of parts){n++;const num=String(n).padStart(2,'0');if(/^(The Idea)$/i.test(heading)){blocks+=idea(heading,paras,num)+media('pair')}else if(/^(The Results|The Impact)$/i.test(heading)){blocks+=results(heading,paras,num)}else{blocks+=section(heading,paras,'',num);if(n===1)blocks+=media('full');else if(n<parts.length)blocks+=media('editorial')}}if(!parts.length)blocks=media('full');const next=(i+1)%projects.length;inner.innerHTML=`<header class="case-hero"><div class="case-hero-shade"></div><div class="case-hero-copy"><h1 class="case-title">${esc(p.title)}</h1><div class="case-client-hero">${esc(p.client)}</div></div></header>${blocks}${media('full')}<button type="button" class="next-project"><span class="next-eyebrow">UP NEXT / ${String(next+1).padStart(3,'0')}</span><div class="next-title">${esc(projects[next].title)} ↗</div><span class="next-client">${esc(projects[next].client)}</span></button><button type="button" class="back-work">← BACK TO SELECTED WORK</button>`;inner.querySelector('.next-project').onclick=()=>window.openCase(next);inner.querySelector('.back-work').onclick=()=>closeCase();caseEl.scrollTop=0;const observer=new IntersectionObserver(entries=>{for(const e of entries)if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}},{root:caseEl,threshold:.06});inner.querySelectorAll('.reveal').forEach(el=>observer.observe(el));if(window.renderGreatUnwaste)window.renderGreatUnwaste(i);};
 // The close control remains fixed while scrolling and always returns to the work index.
 document.getElementById('caseClose').onclick=()=>closeCase();
 })();</script>
 <style id="gu-final-layout">
 .case-hero.gu-hero{background-image:linear-gradient(0deg,rgba(0,0,0,.58),transparent 65%),url("project-images/great-unwaste/GU_Hero_DT_1920x950.jpeg")!important;background-position:center!important;background-size:cover!important}
-.gu-gallery{padding:8px 4vw 70px;background:var(--paper);display:flex;flex-direction:column;gap:8px}
-.gu-gallery img{display:block;width:100%;height:auto}
-.gu-gallery .gu-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start}
-.gu-gallery .gu-film{position:relative}.gu-gallery .gu-film::after{content:'CAMPAIGN FILM / VIDEO TO BE ADDED';position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(12px,2vw,24px);letter-spacing:.07em;background:#bbb8}
-@media(max-width:700px){.gu-gallery{padding:5px 18px 45px;gap:5px}.gu-gallery .gu-pair{grid-template-columns:1fr;gap:5px}.case-hero.gu-hero{background-position:60% center!important}}
+/* Each filename determines its module width; original supplied sequence is preserved. */
+.gu-gallery{padding:8px 4vw 70px;background:var(--paper);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:start}
+.gu-gallery .gu-item{margin:0;min-width:0;overflow:hidden}
+.gu-gallery .gu-item.full{grid-column:1/-1}
+.gu-gallery .gu-item.half{grid-column:span 1}
+.gu-gallery img{display:block;width:100%;height:auto;object-fit:contain}
+.gu-gallery .gu-film{position:relative}
+.gu-gallery .gu-film::after{content:'CAMPAIGN FILM / VIDEO TO BE ADDED';position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(12px,2vw,24px);letter-spacing:.07em;background:#bbb8}
+@media(max-width:700px){.gu-gallery{padding:5px 18px 45px;gap:5px;grid-template-columns:1fr}.gu-gallery .gu-item.full,.gu-gallery .gu-item.half{grid-column:1/-1}.case-hero.gu-hero{background-position:60% center!important}}
 </style>
 <script id="gu-final-population">(()=>{
-const original=window.openCase;
-window.openCase=function(i){
- original(i);
+window.renderGreatUnwaste=function(i){
  const inner=document.querySelector('#case .case-inner');
  inner.querySelector('.case-hero')?.classList.toggle('gu-hero',i===0);
  if(i!==0)return;
- // The editorial builder renders the approved written copy; replace only its image placeholders.
  inner.querySelectorAll('.media-zone').forEach(el=>el.remove());
  const folder='project-images/great-unwaste/';
- const pic=(name,alt)=>`<img src="${folder+name}" alt="${alt}" loading="lazy">`;
- const pair=(a,b)=>`<div class="gu-pair">${pic(a,'The Great Unwaste campaign artwork')}${pic(b,'The Great Unwaste campaign artwork')}</div>`;
+ const files=[
+  'GU_Two_Col_Kitchen_Family_1020x1500.jpeg',
+  'GU_Full_Width_Car_Park_1600x800.jpeg',
+  'GU_Full_Width_Kitchen_1600x800.jpeg',
+  'GU_Two_Col_Freezer_1020x1500.jpeg',
+  'GU_Two_Col_Website_1020x730.jpeg',
+  'GU_Two_Col_logo_salad_1020x730.jpeg',
+  'GU_Two_Col_Apron_1020x730.jpeg',
+  'GU_Two_Col_logo_pink_1020x730.png',
+  'GU_Full_Width_Video_Placeholder_1600x800.png'
+ ];
  const gallery=document.createElement('div');gallery.className='gu-gallery';
- gallery.innerHTML=
-   pic('GU_Two_Col_Kitchen_Family_1020x1500.jpeg','The Great Unwaste campaign artwork')+
-   pic('GU_Full_Width_Car_Park_1600x800.jpeg','The Great Unwaste outdoor campaign')+
-   pic('GU_Full_Width_Kitchen_1600x800.jpeg','The Great Unwaste outdoor campaign')+
-   pic('GU_Two_Col_Freezer_1020x1500.jpeg','The Great Unwaste campaign artwork')+
-   pair('GU_Two_Col_Website_1020x730.jpeg','GU_Two_Col_logo_salad_1020x730.jpeg')+
-   pair('GU_Two_Col_Apron_1020x730.jpeg','GU_Two_Col_logo_pink_1020x730.png')+
-   `<div class="gu-film">${pic('GU_Full_Width_Video_Placeholder_1600x800.png','Campaign film placeholder')}</div>`;
+ files.forEach(name=>{
+  const item=document.createElement('figure');
+  const full=name.includes('Full_Width');
+  item.className='gu-item '+(full?'full':'half')+(name.includes('Video_Placeholder')?' gu-film':'');
+  const img=document.createElement('img');img.src=folder+name;
+  img.alt=name.includes('Video_Placeholder')?'Campaign film placeholder':'The Great Unwaste campaign artwork';
+  img.loading='lazy';item.append(img);gallery.append(item);
+ });
  const next=inner.querySelector('.next-project');if(next)next.before(gallery);else inner.append(gallery);
 };
 })();</script>
+
+
+
+<style id="v29-case-reopen-fix">
+/* Closed overlay must never intercept clicks on Selected Work. */
+#case:not(.open){pointer-events:none!important;visibility:hidden!important}
+#case.open{pointer-events:auto!important;visibility:visible!important}
+.v23-row:focus:not(:focus-visible){outline:none!important}
+.v23-row:focus-visible{outline:2px solid var(--acid);outline-offset:3px}
+</style>
+<script id="v29-case-reopen-fix-js">
+(()=>{
+  const panel=document.getElementById('case');
+  const work=document.getElementById('gallery');
+  const menu=document.getElementById('menuPanel');
+  let closeTimer;
+  // The legacy openCase references IDs removed when the editorial template renders.
+  // Always enter through the editorial renderer instead of that stale DOM code.
+  window.openCase=function(i){
+    if(!projects[i])return;
+    clearTimeout(closeTimer);
+    galleryScroll=work.scrollTop;
+    panel.style.transition='transform .68s cubic-bezier(.22,.78,.18,1)';
+    panel.style.transform='';
+    panel.classList.add('open');
+    panel.scrollTop=0;
+    work.classList.add('gallery-under');
+    menu.classList.remove('open');
+    document.getElementById('menuToggle')?.setAttribute('aria-expanded','false');
+    if(typeof window.renderPortfolioCase==='function')window.renderPortfolioCase(i);
+  };
+  window.closeCase=function(){
+    clearTimeout(closeTimer);
+    panel.classList.remove('open');
+    panel.style.transform='';
+    work.classList.remove('gallery-under');
+    work.scrollTop=galleryScroll;
+  };
+  document.getElementById('caseClose').onclick=()=>window.closeCase();
+  document.querySelectorAll('.back-work').forEach(b=>b.onclick=()=>window.closeCase());
+  document.addEventListener('click',e=>{
+    if(e.target.closest('#case .back-work')){e.preventDefault();window.closeCase()}
+  });
+})();
+</script>
+
+<!-- V29: CLOSE belongs to the scrolling case-study content, not the viewport. -->
+<style id="v29-scrolling-close">
+.case-inner{position:relative!important}
+.case .case-close{
+  position:absolute!important;
+  top:15px!important;
+  right:22px!important;
+  left:auto!important;
+  bottom:auto!important;
+  z-index:9999!important;
+}
+@media(max-width:700px){.case .case-close{top:12px!important;right:12px!important}}
+</style>
+<script id="v29-scrolling-close-script">
+(()=>{
+  const panel=document.getElementById('case');
+  const inner=panel?.querySelector('.case-inner');
+  const button=document.getElementById('caseClose');
+  if(inner&&button&&button.parentElement!==inner)inner.prepend(button);
+})();
+</script>
 </body></html>
