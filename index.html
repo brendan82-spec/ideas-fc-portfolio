@@ -610,4 +610,60 @@ window.renderGreatUnwaste=function(i){
 .gu-campaign-film span{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.24);color:#fff;font-size:clamp(12px,2vw,24px);letter-spacing:.06em;text-align:center;padding:18px}
 @media(max-width:700px){.gu-gallery{padding:6px 18px 42px!important;gap:6px!important}.gu-paired-row{grid-template-columns:1fr;gap:6px}.gu-campaign-film{margin:0 18px 6px}}
 </style>
+
+<!-- V31: Persistent top-left close control and reliable return to Selected Work. -->
+<style id="v31-close-navigation">
+#case.open > #caseClose{
+ position:fixed!important;top:18px!important;left:20px!important;right:auto!important;bottom:auto!important;
+ z-index:2147483000!important;display:flex!important;align-items:center!important;justify-content:center!important;
+ min-height:42px!important;padding:10px 15px!important;visibility:visible!important;opacity:1!important;
+ background:var(--acid)!important;color:var(--ink)!important;border:1px solid var(--ink)!important;
+ border-radius:0!important;pointer-events:auto!important;transform:none!important;
+}
+@media(max-width:700px){#case.open > #caseClose{top:12px!important;left:12px!important;right:auto!important}}
+</style>
+<script id="v31-close-navigation-js">
+(()=>{
+ const panel=document.getElementById('case');
+ const btn=document.getElementById('caseClose');
+ const work=document.getElementById('gallery');
+ const stage=document.getElementById('stage');
+ if(!panel||!btn||!work)return;
+ // A fixed-position child of the scrolling case panel stays visible as its contents scroll.
+ if(btn.parentElement!==panel)panel.insertBefore(btn,panel.firstChild);
+ function returnToWork(){
+   panel.classList.remove('open','peeling');
+   panel.style.transform='';
+   panel.scrollTop=0;
+   work.classList.remove('gallery-under');
+   work.style.transform='translateY(0%)';
+   work.classList.add('work-docked');
+   if(typeof phase!=='undefined')phase='WORK';
+   if(typeof transition!=='undefined')transition=1;
+   if(stage)stage.style.visibility='hidden';
+   document.body.classList.add('v23-postlogo');
+   // Restore the project list at its previous position rather than resetting to the intro.
+   if(typeof galleryScroll==='number')work.scrollTop=galleryScroll;
+ }
+ window.closeCase=returnToWork;
+ btn.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();returnToWork()},true);
+ // The bottom back-to-work action also uses the same return behavior.
+ panel.addEventListener('click',e=>{if(e.target.closest('.back-work')){e.preventDefault();returnToWork()}},true);
+})();
+</script>
+
+<!-- V32: Mount CLOSE outside the scrolling panel so it remains viewport-fixed. -->
+<style id="v32-viewport-close">
+body > #caseClose{position:fixed!important;top:calc(var(--nav-h) + 14px)!important;left:20px!important;right:auto!important;bottom:auto!important;z-index:2147483000!important;background:var(--acid)!important;color:var(--ink)!important;border:1px solid var(--ink)!important;border-radius:0!important;padding:12px 16px!important;font-size:11px!important;line-height:1.2!important;min-height:42px!important;display:none!important;align-items:center!important;justify-content:center!important;visibility:hidden!important;pointer-events:none!important;opacity:0!important;transform:none!important}
+body:has(#case.open) > #caseClose{display:flex!important;visibility:visible!important;pointer-events:auto!important;opacity:1!important}
+@media(max-width:700px){body > #caseClose{top:calc(var(--nav-h) + 10px)!important;left:12px!important}}
+</style>
+<script id="v32-viewport-close-js">
+(()=>{const btn=document.getElementById('caseClose');if(btn&&btn.parentElement!==document.body)document.body.appendChild(btn)})();
+</script>
+
+<style id="v33-top-right-close">
+body > #caseClose {left:auto!important;right:20px!important;top:calc(var(--nav-h) + 14px)!important;}
+@media(max-width:700px){body > #caseClose{left:auto!important;right:12px!important;top:calc(var(--nav-h) + 10px)!important;}}
+</style>
 </body></html>
