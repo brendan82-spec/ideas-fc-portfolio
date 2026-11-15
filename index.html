@@ -488,7 +488,7 @@ window.renderGreatUnwaste=function(i){
  if(i!==0)return;
  inner.querySelectorAll('.media-zone').forEach(el=>el.remove());
  const folder='project-images/great-unwaste/';
- const files=[
+ const images=[
   'GU_Two_Col_Kitchen_Family_1020x1500.jpeg',
   'GU_Full_Width_Car_Park_1600x800.jpeg',
   'GU_Full_Width_Kitchen_1600x800.jpeg',
@@ -496,19 +496,39 @@ window.renderGreatUnwaste=function(i){
   'GU_Two_Col_Website_1020x730.jpeg',
   'GU_Two_Col_logo_salad_1020x730.jpeg',
   'GU_Two_Col_Apron_1020x730.jpeg',
-  'GU_Two_Col_logo_pink_1020x730.png',
-  'GU_Full_Width_Video_Placeholder_1600x800.png'
+  'GU_Two_Col_logo_pink_1020x730.png'
  ];
  const gallery=document.createElement('div');gallery.className='gu-gallery';
- files.forEach(name=>{
-  const item=document.createElement('figure');
-  const full=name.includes('Full_Width');
-  item.className='gu-item '+(full?'full':'half')+(name.includes('Video_Placeholder')?' gu-film':'');
+ // Pair like-sized two-column images; postpone an unmatched image until its partner arrives.
+ // Full-width artwork retains its place relative to the supplied sequence.
+ const pending=new Map();
+ function figure(name){
+  const item=document.createElement('figure');item.className='gu-item';
   const img=document.createElement('img');img.src=folder+name;
-  img.alt=name.includes('Video_Placeholder')?'Campaign film placeholder':'The Great Unwaste campaign artwork';
-  img.loading='lazy';item.append(img);gallery.append(item);
- });
- const next=inner.querySelector('.next-project');if(next)next.before(gallery);else inner.append(gallery);
+  img.alt='The Great Unwaste campaign artwork';img.loading='lazy';item.append(img);return item;
+ }
+ for(const name of images){
+  if(name.includes('Full_Width')){
+   const item=figure(name);item.classList.add('full');gallery.append(item);continue;
+  }
+  const dimensions=(name.match(/_(\d+x\d+)\./)||[])[1]||'unknown';
+  if(pending.has(dimensions)){
+   const row=document.createElement('div');row.className='gu-paired-row';
+   row.append(figure(pending.get(dimensions)),figure(name));gallery.append(row);
+   pending.delete(dimensions);
+  }else pending.set(dimensions,name);
+ }
+ // Unpaired half-width artwork is deliberately placed at the very end.
+ for(const name of pending.values()){
+  const row=document.createElement('div');row.className='gu-paired-row gu-unpaired';row.append(figure(name));gallery.append(row);
+ }
+ const idea=inner.querySelector('.editorial-idea');
+ const film=document.createElement('div');film.className='gu-campaign-film';
+ film.innerHTML='<img src="'+folder+'GU_Full_Width_Video_Placeholder_1600x800.png" alt="Campaign video to be added"><span>CAMPAIGN FILM / VIDEO TO BE ADDED</span>';
+ // Strict page order: Idea → video → campaign imagery → results → next project.
+ if(idea){idea.after(film);film.after(gallery)}else inner.querySelector('.case-hero')?.after(film,gallery);
+ const results=inner.querySelector('.editorial-results');
+ if(results)gallery.after(results);
 };
 })();</script>
 
@@ -578,4 +598,16 @@ window.renderGreatUnwaste=function(i){
   if(inner&&button&&button.parentElement!==inner)inner.prepend(button);
 })();
 </script>
+
+<style id="gu-editorial-grid-v30">
+.gu-gallery{display:flex!important;flex-direction:column!important;gap:10px!important;padding:10px 4vw 70px!important}
+.gu-gallery>.gu-item.full{width:100%;display:block}
+.gu-paired-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;align-items:start}
+.gu-paired-row>.gu-item{width:100%;min-width:0}
+.gu-gallery img{display:block;width:100%;height:auto;object-fit:contain}
+.gu-campaign-film{position:relative;margin:0 4vw 10px;background:#222;overflow:hidden}
+.gu-campaign-film img{display:block;width:100%;height:auto}
+.gu-campaign-film span{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.24);color:#fff;font-size:clamp(12px,2vw,24px);letter-spacing:.06em;text-align:center;padding:18px}
+@media(max-width:700px){.gu-gallery{padding:6px 18px 42px!important;gap:6px!important}.gu-paired-row{grid-template-columns:1fr;gap:6px}.gu-campaign-film{margin:0 18px 6px}}
+</style>
 </body></html>
